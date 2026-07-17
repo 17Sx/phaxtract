@@ -61,7 +61,7 @@ class Line(BaseModel):
     @field_validator("code_produit")
     @classmethod
     def validate_ean(cls, value: str) -> str:
-        cleaned = value.strip()
+        cleaned = re.sub(r"\D", "", value)
         if cleaned and not _EAN_PATTERN.match(cleaned):
             msg = f"Invalid EAN-13: {value!r}"
             raise ValueError(msg)
