@@ -8,7 +8,7 @@
 - [x] Cell-by-cell benchmark
 - [x] CLI `validate-config`, `benchmark`
 - [x] Unit tests + CI
-- [ ] Synthetic gold PDF + expected JSON
+- [x] Synthetic gold PDF + expected JSON
 
 ## Phase 2 — Native PDF path
 

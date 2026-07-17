@@ -53,7 +53,7 @@ phaxtract benchmark gold/monthly_etat_des_ventes.expected.json output.json
 - [x] JSON business rules (LGO, columns, months)
 - [x] Deterministic layer (normalize, validate, reconcile, fingerprint)
 - [x] Cell-by-cell benchmark + CLI
-- [ ] Synthetic gold PDFs
+- [x] Synthetic gold PDFs
 - [ ] Native PDF extraction (phase 2)
 - [ ] NuExtract photo path (phase 3)
 
