@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from phaxtract.fingerprint import identify_lgo
@@ -136,3 +138,16 @@ def docai_to_statement(docai: dict[str, Any], source_file: str) -> ConversionRes
         validation=ValidationResult(row_count=len(lines), totals_reconciled=reconciled),
     )
     return ConversionResult(statement=statement, skipped=skipped)
+
+
+def convert_docai_file(json_path: Path, out_dir: Path) -> tuple[Path, ConversionResult]:
+    """Convert one Doc AI ``*.json`` and write ``<stem>.expected.json`` into out_dir."""
+    docai = json.loads(json_path.read_text(encoding="utf-8"))
+    result = docai_to_statement(docai, json_path.name)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{json_path.stem}.expected.json"
+    out_path.write_text(
+        json.dumps(result.statement.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return out_path, result

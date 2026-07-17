@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from phaxtract.convert_docai import docai_to_statement
+from phaxtract.convert_docai import convert_docai_file, docai_to_statement
+from phaxtract.schema import Statement
 
 
 def _product_line(ean: str, designation: str, months: dict[str, int]) -> dict[str, Any]:
@@ -101,3 +104,22 @@ def test_no_total_line_leaves_reconciled_false() -> None:
     docai = _docai([_product_line("3614810004843", "A", {"2026-05-01": 4})])
     result = docai_to_statement(docai, "doc.json")
     assert result.statement.validation.totals_reconciled is False
+
+
+def test_convert_docai_file_writes_reloadable_gold(tmp_path: Path) -> None:
+    docai = _docai(
+        [
+            {"type": "report_date", "normalizedValue": {"text": "2026-07-07"}},
+            _product_line("34009 22151014", "PRODUCT A", {"2026-05-01": 4}),
+        ]
+    )
+    src = tmp_path / "listing_x.json"
+    src.write_text(json.dumps(docai), encoding="utf-8")
+    out_dir = tmp_path / "converted"
+
+    out_path, result = convert_docai_file(src, out_dir)
+
+    assert out_path == out_dir / "listing_x.expected.json"
+    reloaded = Statement.model_validate(json.loads(out_path.read_text(encoding="utf-8")))
+    assert reloaded.lines[0].code_produit == "3400922151014"
+    assert result.skipped == []
