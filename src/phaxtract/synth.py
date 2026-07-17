@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import fitz  # type: ignore[import-untyped]  # PyMuPDF ships no type stubs
@@ -152,3 +153,16 @@ def render_statement_pdf(stmt: Statement, out_path: Path) -> Path:
     doc.save(str(out_path))
     doc.close()
     return out_path
+
+
+def render_expected_file(expected_path: Path, out_dir: Path) -> Path:
+    """Render the PDF for one ``*.expected.json`` gold fixture.
+
+    The output filename drops the ``.expected`` suffix:
+    ``monthly_etat_des_ventes.expected.json`` -> ``monthly_etat_des_ventes.pdf``.
+    """
+    stmt = Statement.model_validate(
+        json.loads(expected_path.read_text(encoding="utf-8"))
+    )
+    stem = expected_path.name.removesuffix(".expected.json")
+    return render_statement_pdf(stmt, out_dir / f"{stem}.pdf")

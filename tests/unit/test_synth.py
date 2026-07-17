@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import fitz
@@ -9,7 +10,11 @@ import fitz
 from phaxtract.fingerprint import identify_lgo
 from phaxtract.normalize import normalize_month
 from phaxtract.schema import Statement
-from phaxtract.synth import month_column_label, render_statement_pdf
+from phaxtract.synth import (
+    month_column_label,
+    render_expected_file,
+    render_statement_pdf,
+)
 
 
 def _extract_text(pdf_path: Path) -> str:
@@ -50,3 +55,16 @@ def test_render_statement_pdf_round_trips(
     assert "janv. 2026" in text
     assert "déc. 2025" in text
     assert "TOTAL" in text
+
+
+def test_render_expected_file_names_output_from_stem(
+    sample_statement_data: dict, tmp_path: Path
+) -> None:
+    expected = tmp_path / "monthly_etat_des_ventes.expected.json"
+    expected.write_text(json.dumps(sample_statement_data), encoding="utf-8")
+    out_dir = tmp_path / "out"
+
+    result = render_expected_file(expected, out_dir)
+
+    assert result == out_dir / "monthly_etat_des_ventes.pdf"
+    assert result.read_bytes().startswith(b"%PDF")
