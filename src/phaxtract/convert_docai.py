@@ -72,6 +72,26 @@ def _line_quantities(props: dict[str, list[dict[str, Any]]]) -> dict[str, int | 
     return quantities
 
 
+def _total_line_quantities(entities: list[dict[str, Any]]) -> dict[str, int | float] | None:
+    for entity in entities:
+        if entity.get("type") == "total_line":
+            return _line_quantities(_props_by_type(entity))
+    return None
+
+
+def _reconcile(lines: list[Line], printed_totals: dict[str, int | float] | None) -> bool:
+    if not printed_totals:
+        return False
+    sums: dict[str, float] = {}
+    for line in lines:
+        for month, qty in line.quantities.items():
+            sums[month] = sums.get(month, 0.0) + float(qty)
+    return all(
+        sums.get(month, 0.0) == float(expected)
+        for month, expected in printed_totals.items()
+    )
+
+
 def docai_to_statement(docai: dict[str, Any], source_file: str) -> ConversionResult:
     """Map one Doc AI entity JSON to a canonical Statement plus a skipped-line report."""
     entities = docai.get("entities", [])
@@ -109,9 +129,10 @@ def docai_to_statement(docai: dict[str, Any], source_file: str) -> ConversionRes
         months=months,
         generated_at=_first_report_date(entities),
     )
+    reconciled = _reconcile(lines, _total_line_quantities(entities))
     statement = Statement(
         document=document,
         lines=lines,
-        validation=ValidationResult(row_count=len(lines)),
+        validation=ValidationResult(row_count=len(lines), totals_reconciled=reconciled),
     )
     return ConversionResult(statement=statement, skipped=skipped)

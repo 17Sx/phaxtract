@@ -68,3 +68,36 @@ def test_report_date_and_lgo_and_type() -> None:
     assert doc.lgo == "etat_des_ventes"
     assert doc.statement_type == "monthly"
     assert doc.source_file == "doc.json"
+
+
+def _total_line(months: dict[str, int]) -> dict[str, Any]:
+    props = []
+    for day, qty in months.items():
+        props.append(
+            {
+                "type": "sales_by_month",
+                "properties": [
+                    {"type": "month_period_normalized", "normalizedValue": {"text": day}},
+                    {"type": "sales_quantity", "normalizedValue": {"text": str(qty)}},
+                ],
+            }
+        )
+    return {"type": "total_line", "properties": props}
+
+
+def test_reconciles_against_total_line() -> None:
+    docai = _docai(
+        [
+            _product_line("3614810004843", "A", {"2026-05-01": 4}),
+            _product_line("5410765005533", "B", {"2026-05-01": 1}),
+            _total_line({"2026-05-01": 5}),
+        ]
+    )
+    result = docai_to_statement(docai, "doc.json")
+    assert result.statement.validation.totals_reconciled is True
+
+
+def test_no_total_line_leaves_reconciled_false() -> None:
+    docai = _docai([_product_line("3614810004843", "A", {"2026-05-01": 4})])
+    result = docai_to_statement(docai, "doc.json")
+    assert result.statement.validation.totals_reconciled is False
