@@ -19,7 +19,7 @@ Replace Google Document AI with a self-hosted pipeline that keeps data on-premis
 
 ## Features
 
-- **Two extraction paths** — native PDF (pdfplumber) and photo/scan (NuExtract 3)
+- **Two extraction paths** — photo/scan (NuExtract 3, the priority) and native PDF (pdfplumber)
 - **One deterministic layer** — LGO fingerprinting, normalization, validation, reconciliation
 - **JSON-driven rules** — add a new LGO without changing code
 - **Self-validating output** — Σ quantities must match printed totals
@@ -47,15 +47,17 @@ phaxtract benchmark gold/monthly_etat_des_ventes.expected.json output.json
 
 ## Project status
 
-**Phase 1 — Foundations** (in progress)
+**Phase 1 — Foundations** ✅ complete
+
+Primary input is **photos/scans**, so the next priority is the **AI/photo path (NuExtract)**; the native-PDF path is deferred.
 
 - [x] Pydantic `Statement` schema
 - [x] JSON business rules (LGO, columns, months)
 - [x] Deterministic layer (normalize, validate, reconcile, fingerprint)
 - [x] Cell-by-cell benchmark + CLI
-- [ ] Synthetic gold PDFs
-- [ ] Native PDF extraction (phase 2)
-- [ ] NuExtract photo path (phase 3)
+- [ ] **Next:** Doc AI → `Statement` gold converter (real photo dataset)
+- [ ] NuExtract photo extraction (Phase 2)
+- [ ] Native PDF extraction (Phase 3, deferred)
 
 See [ROADMAP](docs/ROADMAP.md) for details.
 

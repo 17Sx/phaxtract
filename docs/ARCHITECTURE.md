@@ -27,7 +27,7 @@ flowchart TB
 
 ## Principles
 
-1. **Two paths, one business logic** — AI reads the document; the deterministic layer validates and normalizes.
+1. **Two paths, one business logic** — AI reads the document; the deterministic layer validates and normalizes. Primary input is **photos**, so the **AI path (NuExtract) is the priority**; the native PDF path is deferred.
 2. **JSON config** — LGO fingerprints, column aliases, month abbreviations: never hard-coded.
 3. **Self-validation** — Σ quantities = printed Total (`totals_reconciled`).
 4. **Offline** — no network calls in production.
@@ -47,9 +47,9 @@ phaxtract/
 │   ├── normalize.py     # months, columns, FR decimals
 │   ├── validate.py      # reconciliation
 │   ├── benchmark.py     # scoring vs gold
-│   ├── ingest.py        # (phase 2) document type detection
-│   ├── extract_native.py# (phase 2) PDF path
-│   ├── extract_ai.py    # (phase 3) NuExtract path
+│   ├── ingest.py        # (phase 3, deferred) document type detection
+│   ├── extract_native.py# (phase 3, deferred) native PDF path
+│   ├── extract_ai.py    # (phase 2, priority) NuExtract photo path
 │   ├── pipeline.py      # orchestrator
 │   └── cli.py           # Typer CLI
 ├── gold/                # synthetic test fixtures (versioned)

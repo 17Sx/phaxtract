@@ -84,13 +84,15 @@ flowchart LR
 2. **Extraction** — read table grids/rows (pdfplumber)
 3. **Deterministic layer** — see dedicated section
 
-**Constraints:** free, fast, reproducible. Priority path to implement first.
+**Constraints:** free, fast, reproducible. **Deferred** — implemented only once
+native-text PDFs are part of the input (see Path 2, the priority).
 
 ---
 
-## Path 2 — Photo / scan
+## Path 2 — Photo / scan ⭐ priority
 
-Main volume: paper statement photos, scans, image-only PDFs.
+Main volume: paper statement photos, scans, image-only PDFs. This is the priority
+path — the real dataset is ~197 photos annotated with Google Document AI.
 
 ```mermaid
 flowchart LR
@@ -202,8 +204,10 @@ flowchart LR
 | Reconciliation rate | ≥ 95% |
 | LGO coverage | ≥ 3 different LGOs |
 
-**Synthetic gold:** generated PDFs reproducing real layouts, with expected JSON — for automated tests.  
-**Real gold:** manually corrected Google Document AI exports — for real-world quality measurement.
+**Real gold (primary):** the ~197 Google Document AI exports, converted into
+canonical `Statement` JSON, are the real-world benchmark for the photo path.  
+**Synthetic gold (secondary):** generated PDFs reproducing real layouts, with
+expected JSON — CI tests for the deferred native path.
 
 ---
 
@@ -237,34 +241,39 @@ No auth, no database, no editing in v1.
 
 ```mermaid
 flowchart LR
-    P1["Phase 1\nFoundations"] --> P2["Phase 2\nPDF path"]
-    P2 --> P3["Phase 3\nAI path"]
+    P1["Phase 1\nFoundations"] --> P2["Phase 2\nAI path (NuExtract)"]
+    P2 --> P3["Phase 3\nPDF path (deferred)"]
     P3 --> P4["Phase 4\nQuality & UI"]
 ```
 
-### Phase 1 — Foundations
+> Primary input is photos, so the **AI path is the priority**; the native PDF path
+> is deferred until native-text PDFs are part of the input.
+
+### Phase 1 — Foundations ✅
 
 - Pydantic schema (`Statement`, `Line`, `Document`…)
 - JSON config (LGO fingerprints, column aliases, month abbreviations)
 - Deterministic layer: normalize, validate, reconcile
-- Synthetic gold + cell-by-cell benchmark
+- Cell-by-cell benchmark + CLI
 - Unit tests on deterministic layer
 
-### Phase 2 — Native PDF path
+### Phase 2 — AI path (photos) ⭐ priority
+
+- **Doc AI → `Statement` converter** — turn the ~197 annotated exports into real gold
+- Real-data benchmark harness (`compare_statements` over the photo gold)
+- NuExtract 3 inference (zero-shot)
+- Extraction template + mapping to `Statement`
+- Benchmark NuExtract vs real gold
+- LoRA fine-tune if precision < 90%
+
+### Phase 3 — Native PDF path (deferred)
 
 - Ingestion (text layer detection)
 - Table extraction (pdfplumber)
 - Pipeline: ingest → extract → assemble → JSON
-- CLI: `extract` + `benchmark`
-- Benchmark on synthetic gold then real gold
-
-### Phase 3 — AI path (photos)
-
-- NuExtract 3 inference (zero-shot)
-- Extraction template + mapping to `Statement`
+- CLI: `extract`
+- Synthetic gold PDFs (prototype on `feat/synthetic-gold-pdf`) + benchmark
 - Automatic router: native PDF vs photo
-- Benchmark NuExtract vs real gold
-- LoRA fine-tune if precision < 90%
 
 ### Phase 4 — Quality & UI
 
@@ -311,9 +320,10 @@ phaxtract/
 
 | Topic | Choice | Reason |
 | ----- | ------ | ------ |
-| PDF path | pdfplumber | Free, reliable on native text |
+| Primary input | Photos / scans | Main real-world volume → AI path first |
 | Photo path | NuExtract 3 | Zero-shot, simple pipeline, fine-tune possible |
+| Native PDF path | pdfplumber | Free on native text — deferred until needed |
 | LayoutLMv3 | No | Dataset too small, complex assembler |
 | Geometric OCR | No | Insufficient precision (~5%) |
-| Google Doc AI | Gold only | Benchmark reference, not production |
+| Google Doc AI | Gold source + reference | Convert exports into `Statement` gold; not production |
 | Business rules | JSON config | Add an LGO without touching code |
