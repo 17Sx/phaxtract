@@ -1,0 +1,19 @@
+{
+  "ean": "code_produit",
+  "code ean": "code_produit",
+  "code produit": "code_produit",
+  "cip": "code_produit",
+  "désignation": "designation",
+  "designation": "designation",
+  "libellé": "designation",
+  "libelle": "designation",
+  "qté": "quantity",
+  "qte": "quantity",
+  "quantité": "quantity",
+  "quantite": "quantity",
+  "pa cat": "pa_cat",
+  "pa cat.": "pa_cat",
+  "pa cat net": "pa_cat_net",
+  "pv ttc": "pv_ttc",
+  "total": "total"
+}

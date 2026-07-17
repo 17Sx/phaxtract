@@ -1,0 +1,32 @@
+{
+  "lgos": [
+    {
+      "id": "etat_des_ventes",
+      "display_name": "Sales Statement",
+      "signatures": [
+        "ETAT DES VENTES",
+        "ÉTAT DES VENTES",
+        "Etat des ventes"
+      ],
+      "statement_types": ["monthly", "period"]
+    },
+    {
+      "id": "lgpi",
+      "display_name": "LGPI",
+      "signatures": [
+        "LGPI",
+        "Logiciel LGPI"
+      ],
+      "statement_types": ["monthly"]
+    },
+    {
+      "id": "winpharma",
+      "display_name": "WinPharma",
+      "signatures": [
+        "WINPHARMA",
+        "Win Pharma"
+      ],
+      "statement_types": ["monthly", "period"]
+    }
+  ]
+}
