@@ -8,10 +8,13 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from phaxtract.benchmark import compare_statements
 from phaxtract.config.loader import load_lgo_config
+from phaxtract.extract_ai import extract_statement_from_image
+from phaxtract.nuextract_engine import ExtractionDependencyError, NuExtractEngine
 from phaxtract.schema import Statement
 
 app = typer.Typer(
@@ -53,6 +56,40 @@ def benchmark(
             console.print(f"  [yellow]{diff.path}[/yellow]: {diff.expected!r} → {diff.actual!r}")
         if len(report.diffs) > 10:
             console.print(f"  … and {len(report.diffs) - 10} more")
+
+
+@app.command("extract")
+def extract(
+    image: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Photo/scan to extract")
+    ],
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Write the Statement JSON here (default: stdout)"),
+    ] = None,
+    model: Annotated[
+        str, typer.Option("--model", help="NuExtract HuggingFace model id")
+    ] = "numind/NuExtract3",
+    pretty: Annotated[bool, typer.Option("--pretty", help="Indent the JSON output")] = False,
+) -> None:
+    """Extract a pharmacy statement from a photo/scan via NuExtract.
+
+    Requires the optional AI dependencies (the "ai" extra); see the README.
+    """
+    engine = NuExtractEngine(model_id=model)
+    try:
+        statement = extract_statement_from_image(image, engine=engine)
+    except ExtractionDependencyError as exc:
+        console.print(f"[red]Error[/red] — {escape(str(exc))}")
+        raise typer.Exit(code=1) from exc
+
+    payload = statement.model_dump_json(indent=2 if pretty else None)
+    if out is not None:
+        out.write_text(payload, encoding="utf-8")
+        rows = statement.validation.row_count
+        console.print(f"[green]OK[/green] — wrote {rows} line(s) to {out}")
+    else:
+        print(payload)
 
 
 if __name__ == "__main__":

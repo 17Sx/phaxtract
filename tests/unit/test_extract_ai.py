@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from phaxtract.extract_ai import nuextract_to_statement
+from phaxtract.extract_ai import (
+    extract_statement_from_image,
+    nuextract_to_statement,
+    parse_nuextract_output,
+)
 from phaxtract.nuextract_template import STATEMENT_TEMPLATE
 
 
@@ -102,3 +108,73 @@ def test_missing_or_messy_fields_do_not_crash() -> None:
     assert stmt.lines[0].code_produit == "3614810004843"
     assert stmt.lines[0].quantities == {}
     assert len(stmt.lines) == 1  # the code-less product is skipped
+
+
+# --- parse_nuextract_output -------------------------------------------------
+
+
+def test_parse_plain_json() -> None:
+    assert parse_nuextract_output('{"products": []}') == {"products": []}
+
+
+def test_parse_fenced_json() -> None:
+    text = '```json\n{"supplier": "ACME"}\n```'
+    assert parse_nuextract_output(text) == {"supplier": "ACME"}
+
+
+def test_parse_json_with_trailing_prose() -> None:
+    text = 'Here is the result:\n{"supplier": "ACME"}\nHope that helps.'
+    assert parse_nuextract_output(text) == {"supplier": "ACME"}
+
+
+def test_parse_malformed_returns_empty_dict() -> None:
+    assert parse_nuextract_output("not json at all") == {}
+    assert parse_nuextract_output("") == {}
+    assert parse_nuextract_output("[1, 2, 3]") == {}  # JSON, but not an object
+
+
+# --- extract_statement_from_image (orchestrator, fake engine) ---------------
+
+
+class _FakeEngine:
+    """Stand-in ExtractionEngine that returns canned NuExtract JSON, no GPU."""
+
+    def __init__(self, payload: dict[str, Any]) -> None:
+        self._payload = payload
+        self.calls: list[tuple[str, str]] = []
+
+    def extract(self, image: str | Path, template: str) -> str:
+        self.calls.append((str(image), template))
+        return json.dumps(self._payload)
+
+
+def test_extract_from_image_uses_engine_and_maps() -> None:
+    engine = _FakeEngine(
+        {
+            "products": [
+                {
+                    "code_produit": "3614810004843",
+                    "designation": "A",
+                    "sales": [{"month": "2026-05-01", "quantity": 5}],
+                }
+            ]
+        }
+    )
+    stmt = extract_statement_from_image("photo.jpg", engine=engine)
+    assert stmt.lines[0].code_produit == "3614810004843"
+    assert stmt.lines[0].quantities == {"2026-05": 5}
+    # engine received the default template (json string of STATEMENT_TEMPLATE)
+    _, template = engine.calls[0]
+    assert json.loads(template) == STATEMENT_TEMPLATE
+
+
+def test_extract_from_image_defaults_source_file_to_filename() -> None:
+    engine = _FakeEngine({"products": []})
+    stmt = extract_statement_from_image(Path("scans") / "etat_mai.png", engine=engine)
+    assert stmt.document.source_file == "etat_mai.png"
+
+
+def test_extract_from_image_respects_explicit_source_file() -> None:
+    engine = _FakeEngine({"products": []})
+    stmt = extract_statement_from_image("a.png", engine=engine, source_file="override.png")
+    assert stmt.document.source_file == "override.png"
