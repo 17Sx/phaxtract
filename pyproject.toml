@@ -88,6 +88,13 @@ strict = true
 packages = ["phaxtract"]
 mypy_path = "src"
 
+# Optional `[ai]` extra: torch/transformers/pillow are absent in the lint/type CI
+# job (only `[dev]` is installed), and ship partial/no stubs. They are imported
+# lazily inside nuextract_engine, so relax missing-import errors for them only.
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*", "transformers", "transformers.*", "PIL", "PIL.*"]
+ignore_missing_imports = true
+
 [tool.coverage.run]
 source = ["phaxtract"]
 branch = true
