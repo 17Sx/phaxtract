@@ -45,6 +45,25 @@ pytest
 phaxtract benchmark gold/monthly_etat_des_ventes.expected.json output.json
 ```
 
+### Extract a photo/scan with NuExtract
+
+The photo path runs a local [NuExtract](https://huggingface.co/numind/NuExtract3)
+vision-language model. It needs the optional `ai` extra (torch + transformers) and,
+for practical speed, a GPU:
+
+```bash
+pip install -e ".[ai]"
+
+# Photo/scan -> canonical Statement JSON (stdout, or -o to a file)
+phaxtract extract statement.jpg --pretty
+phaxtract extract statement.jpg -o statement.json
+phaxtract extract statement.jpg --model numind/NuExtract-2.0-4B  # pick another model
+```
+
+The model reads the image plus the extraction template and fills it; the raw output
+is mapped to a validated `Statement` by the same deterministic layer every path
+shares. The first run downloads the model from HuggingFace; everything else is offline.
+
 ## Project status
 
 **Phase 1 — Foundations** ✅ complete
@@ -55,8 +74,9 @@ Primary input is **photos/scans**, so the next priority is the **AI/photo path (
 - [x] JSON business rules (LGO, columns, months)
 - [x] Deterministic layer (normalize, validate, reconcile, fingerprint)
 - [x] Cell-by-cell benchmark + CLI
-- [ ] **Next:** Doc AI → `Statement` gold converter (real photo dataset)
-- [ ] NuExtract photo extraction (Phase 2)
+- [x] Doc AI → `Statement` gold converter (real photo dataset)
+- [x] NuExtract photo extraction — template, mapping, inference engine, `extract` CLI
+- [ ] **Next:** benchmark NuExtract vs real gold (Phase 2)
 - [ ] Native PDF extraction (Phase 3, deferred)
 
 See [ROADMAP](docs/ROADMAP.md) for details.

@@ -1,0 +1,70 @@
+"""Tests for the NuExtract engine — the torch/transformers-isolated inference layer.
+
+The heavy model is never loaded here: we test the config surface, the lazy-import
+error path, the device-resolution logic, and (in a fresh subprocess) that importing
+the module never pulls torch into memory.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+
+import pytest
+
+from phaxtract.nuextract_engine import (
+    ExtractionDependencyError,
+    NuExtractEngine,
+    _build_messages,
+    _resolve_device,
+)
+
+
+def test_default_config() -> None:
+    engine = NuExtractEngine()
+    assert engine.model_id == "numind/NuExtract3"
+    assert engine.thinking is False
+    assert engine.max_new_tokens == 4096
+    assert engine.device is None  # resolved lazily at load time
+
+
+def test_resolve_device_prefers_explicit() -> None:
+    assert _resolve_device("cpu", cuda_available=True) == "cpu"
+    assert _resolve_device("cuda:1", cuda_available=False) == "cuda:1"
+
+
+def test_resolve_device_auto() -> None:
+    assert _resolve_device(None, cuda_available=True) == "cuda"
+    assert _resolve_device(None, cuda_available=False) == "cpu"
+
+
+def test_build_messages_carries_image_and_instruction() -> None:
+    messages = _build_messages("photo.png")
+    content = messages[0]["content"]
+    assert messages[0]["role"] == "user"
+    assert {"type": "image", "image": "photo.png"} in content
+    assert any(part["type"] == "text" and part["text"] for part in content)
+
+
+def test_load_without_backend_raises_dependency_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _boom() -> object:
+        raise ImportError("No module named 'torch'")
+
+    monkeypatch.setattr("phaxtract.nuextract_engine._import_backend", _boom)
+    engine = NuExtractEngine()
+    with pytest.raises(ExtractionDependencyError, match=r"phaxtract\[ai\]"):
+        engine.load()
+
+
+def test_importing_engine_does_not_import_torch() -> None:
+    code = (
+        "import sys; import phaxtract.nuextract_engine, phaxtract.extract_ai; "
+        "assert 'torch' not in sys.modules, 'torch was imported at module load'; "
+        "assert 'transformers' not in sys.modules, 'transformers was imported at module load'"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
