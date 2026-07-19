@@ -17,11 +17,11 @@
 
 Turn the real photo dataset into measurable ground truth, then extract against it.
 
-- [ ] **Doc AI → `Statement` converter** — convert the ~197 annotated Google
+- [x] **Doc AI → `Statement` converter** — convert the ~197 annotated Google
       Document AI JSONs into canonical `*.expected.json` gold (local, gitignored)
+- [x] Extraction template + mapping raw output → `Statement`
 - [ ] Real-data benchmark harness — run `compare_statements` over the photo gold
 - [ ] NuExtract 3 zero-shot inference (local GPU) in `extract_ai.py`
-- [ ] Extraction template + mapping raw output → `Statement`
 - [ ] Benchmark NuExtract vs real gold
 - [ ] LoRA fine-tune if precision < 90%
 
