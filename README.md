@@ -82,9 +82,12 @@ Primary input is **photos/scans**, so the next priority is the **AI/photo path (
 - [x] Deterministic layer (normalize, validate, reconcile, fingerprint)
 - [x] Cell-by-cell benchmark + CLI
 - [x] Doc AI → `Statement` gold converter (real photo dataset)
-- [x] NuExtract photo extraction — template, mapping, inference engine, `extract` CLI
+- [x] NuExtract3 zero-shot photo extraction — template, mapping, engine, `extract` CLI
 - [x] Benchmark harness — `scripts/benchmark_nuextract.py` (photo gold, micro precision)
-- [ ] **Next:** run the benchmark on the GPU server + fine-tune if precision < 90%
+- [x] Fine-tune scaffolding — `build_finetune_data.py` + `finetune_nuextract.py` (QLoRA,
+      fits 12 GB) + adapter eval; few-shot via `--examples`
+- [ ] **Next:** run the LoRA fine-tune on a ≥ 16 GB GPU to fix dense-grid quantity
+      alignment (zero-shot reads structure well but misaligns the monthly quantities)
 - [ ] Native PDF extraction (Phase 3, deferred)
 
 See [ROADMAP](docs/ROADMAP.md) for details.
