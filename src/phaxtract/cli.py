@@ -70,6 +70,10 @@ def extract(
     model: Annotated[
         str, typer.Option("--model", help="NuExtract HuggingFace model id")
     ] = "numind/NuExtract-2.0-2B",
+    adapter: Annotated[
+        str | None,
+        typer.Option("--adapter", help="Path to a trained LoRA adapter to apply"),
+    ] = None,
     four_bit: Annotated[
         bool,
         typer.Option("--4bit", help="Load the model 4-bit quantized (fits a 12 GB GPU)"),
@@ -94,6 +98,7 @@ def extract(
     """
     engine = NuExtractEngine(
         model_id=model,
+        adapter_path=adapter,
         load_in_4bit=four_bit,
         thinking=thinking,
         max_pixels=max_pixels,
