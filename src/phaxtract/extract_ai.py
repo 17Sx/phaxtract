@@ -113,6 +113,36 @@ def nuextract_to_statement(raw: dict[str, Any], source_file: str) -> Statement:
     )
 
 
+def statement_to_nuextract_output(statement: Statement) -> dict[str, Any]:
+    """Inverse of :func:`nuextract_to_statement`: build a filled-template dict.
+
+    Produces the ``products``/``sales`` shape that mirrors
+    :data:`~phaxtract.nuextract_template.STATEMENT_TEMPLATE`, used as the target
+    output when building NuExtract fine-tune examples from gold ``Statement`` data.
+    """
+    products = [
+        {
+            "code_produit": line.code_produit,
+            "designation": line.designation,
+            "sales": [
+                {"month": f"{month}-01", "quantity": quantity}
+                for month, quantity in sorted(line.quantities.items())
+            ],
+        }
+        for line in statement.lines
+    ]
+    generated = statement.document.generated_at
+    return {
+        "pharmacy": {
+            "name": statement.document.pharmacy.name,
+            "id": statement.document.pharmacy.id,
+        },
+        "supplier": statement.document.supplier,
+        "report_date": generated.isoformat() if generated is not None else "",
+        "products": products,
+    }
+
+
 def parse_nuextract_output(text: str) -> dict[str, Any]:
     """Parse a NuExtract raw completion into a JSON object.
 

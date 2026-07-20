@@ -13,9 +13,11 @@ from typing import Any
 from phaxtract.benchmark import (
     BenchmarkReport,
     DatasetReport,
+    PhotoPair,
     aggregate_reports,
     discover_pairs,
     evaluate_photo_dataset,
+    filter_pairs_to_images,
 )
 from phaxtract.schema import Statement
 
@@ -108,6 +110,18 @@ def test_evaluate_perfect_match() -> None:
     assert report.cell_precision == 1.0
 
 
+def test_evaluate_reports_progress() -> None:
+    expected = _expected_statement("3614810004843", "2026-05", 5)
+    engine = _FakeEngine({"a.jpg": {"products": []}, "b.jpg": {"products": []}})
+    seen: list[tuple[int, int, str]] = []
+    evaluate_photo_dataset(
+        [("a.jpg", expected), ("b.jpg", expected)],
+        engine,
+        on_progress=lambda i, total, name: seen.append((i, total, name)),
+    )
+    assert seen == [(1, 2, "a.jpg"), (2, 2, "b.jpg")]
+
+
 def test_evaluate_detects_wrong_quantity() -> None:
     expected = _expected_statement("3614810004843", "2026-05", 5)
     engine = _FakeEngine(
@@ -185,6 +199,17 @@ def test_discover_pairs_does_not_cross_match_different_ids(tmp_path: Path) -> No
 
     assert pairs == []
     assert unmatched == ["20_110000480_251023_251027_040543.expected.json"]
+
+
+def test_filter_pairs_to_images_keeps_only_named(tmp_path: Path) -> None:
+    expected = _expected_statement("3614810004843", "2026-05", 1)
+    pairs = [
+        PhotoPair(image=Path("dir/a.jpg"), expected=expected),
+        PhotoPair(image=Path("dir/b.png"), expected=expected),
+        PhotoPair(image=Path("dir/c.JPG"), expected=expected),
+    ]
+    kept = filter_pairs_to_images(pairs, {"a.jpg", "c.JPG"})
+    assert [p.image.name for p in kept] == ["a.jpg", "c.JPG"]
 
 
 def test_discover_pairs_reports_unmatched(tmp_path: Path) -> None:

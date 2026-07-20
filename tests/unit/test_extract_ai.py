@@ -10,6 +10,7 @@ from phaxtract.extract_ai import (
     extract_statement_from_image,
     nuextract_to_statement,
     parse_nuextract_output,
+    statement_to_nuextract_output,
 )
 from phaxtract.nuextract_template import STATEMENT_TEMPLATE
 
@@ -178,3 +179,42 @@ def test_extract_from_image_respects_explicit_source_file() -> None:
     engine = _FakeEngine({"products": []})
     stmt = extract_statement_from_image("a.png", engine=engine, source_file="override.png")
     assert stmt.document.source_file == "override.png"
+
+
+# --- statement_to_nuextract_output (inverse mapping, for fine-tune targets) ---
+
+
+def test_statement_to_output_round_trips_lines() -> None:
+    source = nuextract_to_statement(
+        _raw(
+            [
+                {
+                    "code_produit": "3614810004843",
+                    "designation": "A",
+                    "sales": [
+                        {"month": "2026-05-01", "quantity": 4},
+                        {"month": "2026-04-01", "quantity": 2},
+                    ],
+                }
+            ],
+            pharmacy={"name": "Pharmacie X", "id": "FR-9"},
+            supplier="ACME",
+            report_date="2026-07-07",
+        ),
+        "photo.jpg",
+    )
+    output = statement_to_nuextract_output(source)
+    # round-trip: mapping the output back reproduces the lines/quantities
+    back = nuextract_to_statement(output, "photo.jpg")
+    assert back.lines[0].code_produit == "3614810004843"
+    assert back.lines[0].quantities == {"2026-05": 4, "2026-04": 2}
+    assert output["pharmacy"]["name"] == "Pharmacie X"
+    assert output["supplier"] == "ACME"
+    assert output["report_date"].startswith("2026-07-07")
+
+
+def test_statement_to_output_empty() -> None:
+    empty = nuextract_to_statement(_raw([]), "photo.jpg")
+    output = statement_to_nuextract_output(empty)
+    assert output["products"] == []
+    assert "pharmacy" in output and "supplier" in output

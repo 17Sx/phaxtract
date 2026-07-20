@@ -24,8 +24,23 @@ Turn the real photo dataset into measurable ground truth, then extract against i
       `extract_statement_from_image()` + `phaxtract extract <image>` CLI
 - [x] Real-data benchmark harness — `discover_pairs` + `evaluate_photo_dataset` +
       `aggregate_reports` + `scripts/benchmark_nuextract.py`
-- [ ] Benchmark NuExtract vs real gold — **run** the harness on the GPU server
-- [ ] LoRA fine-tune if precision < 90%
+- [x] Benchmark NuExtract vs real gold — ran on a 12 GB GPU. Zero-shot NuExtract3
+      reads structure (codes, designations, months) well but **misaligns the dense
+      monthly quantity grid** (reads the printed totals row as a product line).
+- [x] LoRA fine-tune scaffolding — `build_finetune_data.py` (train/val/test split),
+      `finetune_nuextract.py` (QLoRA), adapter eval via `--adapter`. **Trains on
+      12 GB** (4-bit + Liger fused CE + attn-only LoRA + length/resolution capping).
+- [ ] **Run the fine-tune on a ≥ 16 GB GPU** — 12 GB fits NuExtract-2.0-2B training
+      but that model does not extract in our stack; NuExtract3 (which extracts) OOMs
+      at the loss on 12 GB (Liger lacks its arch). Deferred to a larger GPU.
+- [ ] Few-shot in-context examples (`--examples`) — wired, but multi-image prompts
+      need NuExtract's `process_all_vision_info` to interleave example/query images.
+
+### Known limitation
+
+The monthly **quantity grid** is the hard part: zero-shot NuExtract3 gets the layout
+but not the per-cell alignment on dense statements. The surest fix is the LoRA
+fine-tune on a larger GPU (scaffolding ready); few-shot is a lighter, unproven lever.
 
 ## Phase 3 — Native PDF path (deferred)
 

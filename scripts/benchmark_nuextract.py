@@ -21,7 +21,12 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from phaxtract.benchmark import discover_pairs, evaluate_photo_dataset
+from phaxtract.benchmark import (
+    discover_pairs,
+    evaluate_photo_dataset,
+    filter_pairs_to_images,
+)
+from phaxtract.finetune_data import load_examples
 from phaxtract.nuextract_engine import ExtractionDependencyError, NuExtractEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,28 +44,64 @@ def main() -> None:
         "--model", default="numind/NuExtract3", help="NuExtract HuggingFace model id"
     )
     parser.add_argument(
+        "--adapter", default=None, help="Path to a trained LoRA adapter to evaluate"
+    )
+    parser.add_argument(
         "--4bit", dest="four_bit", action="store_true", help="Load 4-bit quantized (12 GB GPU)"
+    )
+    parser.add_argument(
+        "--thinking", action="store_true", help="Enable NuExtract reasoning (dense tables)"
     )
     parser.add_argument(
         "--max-pixels", type=int, default=None, help="Cap input image resolution (w x h)"
     )
+    parser.add_argument(
+        "--max-new-tokens", type=int, default=4096, help="Generation token budget"
+    )
+    parser.add_argument(
+        "--only", type=Path, default=None, help="JSONL split (e.g. test.jsonl) to restrict eval to"
+    )
+    parser.add_argument(
+        "--examples", type=Path, default=None, help="JSONL of few-shot demos (e.g. train.jsonl)"
+    )
+    parser.add_argument("--n-examples", type=int, default=2, help="How many few-shot demos")
     parser.add_argument("--limit", type=int, default=None, help="Benchmark only the first N pairs")
     parser.add_argument("--out", type=Path, default=None, help="Write the full JSON report here")
     args = parser.parse_args()
 
     pairs, unmatched = discover_pairs(args.converted, args.images)
+    if args.only is not None:
+        names = {
+            Path(json.loads(line)["image"]).name
+            for line in args.only.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        pairs = filter_pairs_to_images(pairs, names)
     if args.limit is not None:
         pairs = pairs[: args.limit]
     if not pairs:
         print(f"No (image, gold) pairs found under {args.images} / {args.converted}")
         return
 
+    demos = load_examples(args.examples, args.n_examples) if args.examples is not None else []
     engine = NuExtractEngine(
-        model_id=args.model, load_in_4bit=args.four_bit, max_pixels=args.max_pixels
+        model_id=args.model,
+        adapter_path=args.adapter,
+        load_in_4bit=args.four_bit,
+        thinking=args.thinking,
+        max_pixels=args.max_pixels,
+        max_new_tokens=args.max_new_tokens,
+        examples=demos,
     )
     print(f"Loading {args.model} … (first run downloads the model)")
+
+    def _progress(index: int, total: int, name: str) -> None:
+        print(f"  [{index}/{total}] {name}", flush=True)
+
     try:
-        report = evaluate_photo_dataset([(p.image, p.expected) for p in pairs], engine)
+        report = evaluate_photo_dataset(
+            [(p.image, p.expected) for p in pairs], engine, on_progress=_progress
+        )
     except ExtractionDependencyError as exc:
         raise SystemExit(f"Error — {exc}") from exc
 

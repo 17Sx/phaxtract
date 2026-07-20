@@ -49,6 +49,7 @@ ai = [
     "peft>=0.13",
     "accelerate>=1.0",
     "bitsandbytes>=0.43",
+    "liger-kernel>=0.5",
     "pillow>=10.0",
 ]
 ui = ["streamlit>=1.40"]
@@ -94,7 +95,13 @@ mypy_path = "src"
 # job (only `[dev]` is installed), and ship partial/no stubs. They are imported
 # lazily inside nuextract_engine, so relax missing-import errors for them only.
 [[tool.mypy.overrides]]
-module = ["torch", "torch.*", "transformers", "transformers.*", "PIL", "PIL.*"]
+module = [
+    "torch", "torch.*",
+    "transformers", "transformers.*",
+    "peft", "peft.*",
+    "liger_kernel", "liger_kernel.*",
+    "PIL", "PIL.*",
+]
 ignore_missing_imports = true
 
 [tool.coverage.run]

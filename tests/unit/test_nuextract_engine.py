@@ -15,9 +15,10 @@ import pytest
 from phaxtract.nuextract_engine import (
     ExtractionDependencyError,
     NuExtractEngine,
-    _build_messages,
     _resolve_device,
     _target_size,
+    build_examples_payload,
+    build_messages,
 )
 
 
@@ -29,6 +30,20 @@ def test_default_config() -> None:
     assert engine.device is None  # resolved lazily at load time
     assert engine.load_in_4bit is False
     assert engine.max_pixels is None
+    assert engine.adapter_path is None
+    assert engine.examples == []
+
+
+def test_build_examples_payload_shape_and_order() -> None:
+    payload = build_examples_payload([("a.jpg", '{"x": 1}'), ("b.jpg", '{"y": 2}')])
+    assert payload == [
+        {"input": "<image>", "output": '{"x": 1}'},
+        {"input": "<image>", "output": '{"y": 2}'},
+    ]
+
+
+def test_build_examples_payload_empty() -> None:
+    assert build_examples_payload([]) == []
 
 
 def test_target_size_within_budget_is_none() -> None:
@@ -55,12 +70,17 @@ def test_resolve_device_auto() -> None:
     assert _resolve_device(None, cuda_available=False) == "cpu"
 
 
-def test_build_messages_carries_image_and_instruction() -> None:
-    messages = _build_messages("photo.png")
-    content = messages[0]["content"]
+def test_build_messages_user_turn_carries_image() -> None:
+    messages = build_messages("photo.png")
+    assert len(messages) == 1
     assert messages[0]["role"] == "user"
-    assert {"type": "image", "image": "photo.png"} in content
-    assert any(part["type"] == "text" and part["text"] for part in content)
+    assert {"type": "image", "image": "photo.png"} in messages[0]["content"]
+
+
+def test_build_messages_with_output_adds_assistant_turn() -> None:
+    messages = build_messages("photo.png", output='{"products": []}')
+    assert [m["role"] for m in messages] == ["user", "assistant"]
+    assert messages[1]["content"][0]["text"] == '{"products": []}'
 
 
 def test_load_without_backend_raises_dependency_error(monkeypatch: pytest.MonkeyPatch) -> None:
