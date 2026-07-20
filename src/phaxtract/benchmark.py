@@ -216,6 +216,11 @@ def discover_pairs(converted_dir: Path, images_dir: Path) -> tuple[list[PhotoPai
     return pairs, unmatched
 
 
+def filter_pairs_to_images(pairs: list[PhotoPair], names: set[str]) -> list[PhotoPair]:
+    """Keep only pairs whose image filename is in ``names`` (for held-out eval)."""
+    return [pair for pair in pairs if pair.image.name in names]
+
+
 def evaluate_photo_dataset(
     pairs: list[tuple[str | Path, Statement]],
     engine: ExtractionEngine,

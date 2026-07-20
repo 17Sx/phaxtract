@@ -13,9 +13,11 @@ from typing import Any
 from phaxtract.benchmark import (
     BenchmarkReport,
     DatasetReport,
+    PhotoPair,
     aggregate_reports,
     discover_pairs,
     evaluate_photo_dataset,
+    filter_pairs_to_images,
 )
 from phaxtract.schema import Statement
 
@@ -185,6 +187,17 @@ def test_discover_pairs_does_not_cross_match_different_ids(tmp_path: Path) -> No
 
     assert pairs == []
     assert unmatched == ["20_110000480_251023_251027_040543.expected.json"]
+
+
+def test_filter_pairs_to_images_keeps_only_named(tmp_path: Path) -> None:
+    expected = _expected_statement("3614810004843", "2026-05", 1)
+    pairs = [
+        PhotoPair(image=Path("dir/a.jpg"), expected=expected),
+        PhotoPair(image=Path("dir/b.png"), expected=expected),
+        PhotoPair(image=Path("dir/c.JPG"), expected=expected),
+    ]
+    kept = filter_pairs_to_images(pairs, {"a.jpg", "c.JPG"})
+    assert [p.image.name for p in kept] == ["a.jpg", "c.JPG"]
 
 
 def test_discover_pairs_reports_unmatched(tmp_path: Path) -> None:

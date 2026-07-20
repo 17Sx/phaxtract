@@ -21,7 +21,11 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from phaxtract.benchmark import discover_pairs, evaluate_photo_dataset
+from phaxtract.benchmark import (
+    discover_pairs,
+    evaluate_photo_dataset,
+    filter_pairs_to_images,
+)
 from phaxtract.nuextract_engine import ExtractionDependencyError, NuExtractEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,11 +57,21 @@ def main() -> None:
     parser.add_argument(
         "--max-new-tokens", type=int, default=4096, help="Generation token budget"
     )
+    parser.add_argument(
+        "--only", type=Path, default=None, help="JSONL split (e.g. test.jsonl) to restrict eval to"
+    )
     parser.add_argument("--limit", type=int, default=None, help="Benchmark only the first N pairs")
     parser.add_argument("--out", type=Path, default=None, help="Write the full JSON report here")
     args = parser.parse_args()
 
     pairs, unmatched = discover_pairs(args.converted, args.images)
+    if args.only is not None:
+        names = {
+            Path(json.loads(line)["image"]).name
+            for line in args.only.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        pairs = filter_pairs_to_images(pairs, names)
     if args.limit is not None:
         pairs = pairs[: args.limit]
     if not pairs:
