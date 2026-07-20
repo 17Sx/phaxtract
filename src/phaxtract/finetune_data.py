@@ -41,6 +41,21 @@ def build_examples(pairs: list[tuple[str | Path, Statement]]) -> list[FinetuneEx
     ]
 
 
+def load_examples(path: Path, n: int) -> list[tuple[str, str]]:
+    """First ``n`` ``(image, output)`` pairs from a ``{image,template,output}`` JSONL.
+
+    Used to feed NuExtract few-shot demonstrations; drawing from ``train.jsonl`` keeps
+    the frozen test split out of the prompt.
+    """
+    pairs: list[tuple[str, str]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or len(pairs) >= n:
+            break
+        record = json.loads(line)
+        pairs.append((record["image"], record["output"]))
+    return pairs
+
+
 def split_dataset(items: list[T], *, val: int, test: int, seed: int) -> dict[str, list[T]]:
     """Deterministically partition ``items`` into ``train`` / ``val`` / ``test``.
 

@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from phaxtract.finetune_data import FinetuneExample, build_examples, split_dataset
+from phaxtract.finetune_data import (
+    FinetuneExample,
+    build_examples,
+    load_examples,
+    split_dataset,
+)
 from phaxtract.nuextract_template import STATEMENT_TEMPLATE
 from phaxtract.schema import Statement
 
@@ -57,3 +63,17 @@ def test_split_dataset_different_seed_differs() -> None:
     one = split_dataset(items, val=4, test=3, seed=1)
     two = split_dataset(items, val=4, test=3, seed=2)
     assert one != two
+
+
+def test_load_examples_reads_first_n(tmp_path: Path) -> None:
+    jsonl = tmp_path / "train.jsonl"
+    lines = [
+        {"image": "a.jpg", "template": "{}", "output": '{"a": 1}'},
+        {"image": "b.jpg", "template": "{}", "output": '{"b": 2}'},
+        {"image": "c.jpg", "template": "{}", "output": '{"c": 3}'},
+    ]
+    jsonl.write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+
+    assert load_examples(jsonl, 2) == [("a.jpg", '{"a": 1}'), ("b.jpg", '{"b": 2}')]
+    assert len(load_examples(jsonl, 10)) == 3  # n > file returns all
+    assert load_examples(jsonl, 0) == []

@@ -66,6 +66,15 @@ def _target_size(width: int, height: int, max_pixels: int | None) -> tuple[int, 
     return max(1, int(width * scale)), max(1, int(height * scale))
 
 
+def build_examples_payload(examples: list[tuple[str, str]]) -> list[dict[str, str]]:
+    """``[(image, output), ...]`` -> NuExtract few-shot ``examples=`` payload.
+
+    Each demonstration's input is the ``<image>`` placeholder (the example's image is
+    supplied to the processor, before the query image); ``output`` is its target JSON.
+    """
+    return [{"input": "<image>", "output": output} for _, output in examples]
+
+
 def build_messages(image: str | Path, output: str | None = None) -> list[dict[str, Any]]:
     """Chat messages for a single-image extraction turn (NuExtract native flow).
 
@@ -125,6 +134,8 @@ class NuExtractEngine:
             scans reduces vision tokens and activation memory. ``None`` keeps full size.
         adapter_path: path to a trained PEFT/LoRA adapter to apply on top of the base
             model (e.g. from ``finetune_nuextract.py``). ``None`` uses the base model.
+        examples: in-context ``(image_path, output_json)`` demonstrations prepended to
+            the prompt (NuExtract few-shot). Empty list = zero-shot.
     """
 
     model_id: str = "numind/NuExtract3"
@@ -134,6 +145,7 @@ class NuExtractEngine:
     load_in_4bit: bool = False
     max_pixels: int | None = None
     adapter_path: str | None = None
+    examples: list[tuple[str, str]] = field(default_factory=list)
 
     _loaded: bool = field(default=False, init=False, repr=False)
     _torch: Any = field(default=None, init=False, repr=False)
@@ -194,19 +206,25 @@ class NuExtractEngine:
         from PIL import Image
 
         self.load()
-        picture = Image.open(image).convert("RGB")
-        resized = _target_size(picture.width, picture.height, self.max_pixels)
-        if resized is not None:
-            picture = picture.resize(resized)
+
+        def _load(path: str | Path) -> Any:
+            pic = Image.open(path).convert("RGB")
+            resized = _target_size(pic.width, pic.height, self.max_pixels)
+            return pic.resize(resized) if resized is not None else pic
+
+        # Example images come first (in prompt order), then the query image.
+        images = [_load(example_image) for example_image, _ in self.examples]
+        images.append(_load(image))
         text = self._processor.tokenizer.apply_chat_template(
             build_messages(image),
             template=template,
+            examples=build_examples_payload(self.examples),
             tokenize=False,
             add_generation_prompt=True,
             enable_thinking=self.thinking,
         )
         inputs = self._processor(
-            text=[text], images=[picture], padding=True, return_tensors="pt"
+            text=[text], images=images, padding=True, return_tensors="pt"
         ).to(self._device)
         with self._torch.no_grad():
             generated = self._model.generate(

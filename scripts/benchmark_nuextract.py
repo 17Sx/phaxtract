@@ -26,6 +26,7 @@ from phaxtract.benchmark import (
     evaluate_photo_dataset,
     filter_pairs_to_images,
 )
+from phaxtract.finetune_data import load_examples
 from phaxtract.nuextract_engine import ExtractionDependencyError, NuExtractEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -60,6 +61,10 @@ def main() -> None:
     parser.add_argument(
         "--only", type=Path, default=None, help="JSONL split (e.g. test.jsonl) to restrict eval to"
     )
+    parser.add_argument(
+        "--examples", type=Path, default=None, help="JSONL of few-shot demos (e.g. train.jsonl)"
+    )
+    parser.add_argument("--n-examples", type=int, default=2, help="How many few-shot demos")
     parser.add_argument("--limit", type=int, default=None, help="Benchmark only the first N pairs")
     parser.add_argument("--out", type=Path, default=None, help="Write the full JSON report here")
     args = parser.parse_args()
@@ -78,6 +83,7 @@ def main() -> None:
         print(f"No (image, gold) pairs found under {args.images} / {args.converted}")
         return
 
+    demos = load_examples(args.examples, args.n_examples) if args.examples is not None else []
     engine = NuExtractEngine(
         model_id=args.model,
         adapter_path=args.adapter,
@@ -85,6 +91,7 @@ def main() -> None:
         thinking=args.thinking,
         max_pixels=args.max_pixels,
         max_new_tokens=args.max_new_tokens,
+        examples=demos,
     )
     print(f"Loading {args.model} … (first run downloads the model)")
 

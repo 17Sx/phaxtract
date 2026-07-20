@@ -90,12 +90,22 @@ def extract(
         int,
         typer.Option("--max-new-tokens", help="Generation token budget (raise for thinking)"),
     ] = 4096,
+    examples: Annotated[
+        Path | None,
+        typer.Option("--examples", help="JSONL of few-shot demos (e.g. train.jsonl)"),
+    ] = None,
+    n_examples: Annotated[
+        int, typer.Option("--n-examples", help="How many few-shot demos to use")
+    ] = 2,
     pretty: Annotated[bool, typer.Option("--pretty", help="Indent the JSON output")] = False,
 ) -> None:
     """Extract a pharmacy statement from a photo/scan via NuExtract.
 
     Requires the optional AI dependencies (the "ai" extra); see the README.
     """
+    from phaxtract.finetune_data import load_examples
+
+    demos = load_examples(examples, n_examples) if examples is not None else []
     engine = NuExtractEngine(
         model_id=model,
         adapter_path=adapter,
@@ -103,6 +113,7 @@ def extract(
         thinking=thinking,
         max_pixels=max_pixels,
         max_new_tokens=max_new_tokens,
+        examples=demos,
     )
     try:
         statement = extract_statement_from_image(image, engine=engine)

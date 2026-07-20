@@ -17,6 +17,7 @@ from phaxtract.nuextract_engine import (
     NuExtractEngine,
     _resolve_device,
     _target_size,
+    build_examples_payload,
     build_messages,
 )
 
@@ -30,6 +31,19 @@ def test_default_config() -> None:
     assert engine.load_in_4bit is False
     assert engine.max_pixels is None
     assert engine.adapter_path is None
+    assert engine.examples == []
+
+
+def test_build_examples_payload_shape_and_order() -> None:
+    payload = build_examples_payload([("a.jpg", '{"x": 1}'), ("b.jpg", '{"y": 2}')])
+    assert payload == [
+        {"input": "<image>", "output": '{"x": 1}'},
+        {"input": "<image>", "output": '{"y": 2}'},
+    ]
+
+
+def test_build_examples_payload_empty() -> None:
+    assert build_examples_payload([]) == []
 
 
 def test_target_size_within_budget_is_none() -> None:
