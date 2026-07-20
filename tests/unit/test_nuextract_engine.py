@@ -56,13 +56,12 @@ def test_resolve_device_auto() -> None:
     assert _resolve_device(None, cuda_available=False) == "cpu"
 
 
-def test_build_messages_carries_image_and_inline_template() -> None:
-    messages = _build_messages("photo.png", '{"products": []}')
+def test_build_messages_has_vision_placeholder_and_inline_template() -> None:
+    messages = _build_messages('{"products": []}')
     content = messages[0]["content"]
     assert messages[0]["role"] == "user"
-    assert {"type": "image", "image": "photo.png"} in content
-    text = next(part["text"] for part in content if part["type"] == "text")
-    assert '{"products": []}' in text  # template embedded in the user text
+    assert "<|image_pad|>" in content  # manual vision placeholder
+    assert '{"products": []}' in content  # template embedded in the user text
 
 
 def test_load_without_backend_raises_dependency_error(monkeypatch: pytest.MonkeyPatch) -> None:

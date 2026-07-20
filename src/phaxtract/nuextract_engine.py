@@ -27,6 +27,11 @@ _INSTALL_HINT = (
 # extraction off the template; the instruction just frames the task.
 _EXTRACT_INSTRUCTION = "Extract the information according to the template."
 
+# Qwen2-VL vision placeholder. NuExtract-2.0's custom chat template ignores image
+# content, so we insert this marker into the text ourselves; the image processor then
+# expands ``<|image_pad|>`` to one token per vision patch.
+_VISION_PLACEHOLDER = "<|vision_start|><|image_pad|><|vision_end|>"
+
 
 class ExtractionDependencyError(RuntimeError):
     """Raised when the optional ``[ai]`` extra (torch/transformers) is missing."""
@@ -67,28 +72,19 @@ def _target_size(width: int, height: int, max_pixels: int | None) -> tuple[int, 
 
 
 def build_extraction_text(template: str) -> str:
-    """User-turn text: the extraction template embedded inline, then the instruction.
+    """User-turn text: the vision placeholder, the inline template, then the instruction.
 
-    Embedding the template in the text (rather than passing NuExtract's ``template=``
-    chat-template kwarg) lets the standard Qwen-VL chat template insert the image
-    placeholder tokens. The custom NuExtract-2.0 template drops them, causing
-    "Image features and image tokens do not match, tokens: 0". Fine-tuning learns this
-    exact prompt shape, so training and inference must build it identically.
+    The NuExtract-2.0 chat template does not emit vision tokens from image content
+    ("Image features and image tokens do not match, tokens: 0"), so we prepend the
+    placeholder ourselves and embed the template inline. Fine-tuning learns this exact
+    prompt shape, so training and inference must build it identically.
     """
-    return f"# Template:\n{template}\n\n{_EXTRACT_INSTRUCTION}"
+    return f"{_VISION_PLACEHOLDER}# Template:\n{template}\n\n{_EXTRACT_INSTRUCTION}"
 
 
-def _build_messages(image: str | Path, template: str) -> list[dict[str, Any]]:
+def _build_messages(template: str) -> list[dict[str, Any]]:
     """Build the chat message list for a single-image extraction turn."""
-    return [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": str(image)},
-                {"type": "text", "text": build_extraction_text(template)},
-            ],
-        }
-    ]
+    return [{"role": "user", "content": build_extraction_text(template)}]
 
 
 def _import_backend() -> SimpleNamespace:  # pragma: no cover - requires the [ai] extra
@@ -201,7 +197,7 @@ class NuExtractEngine:
         resized = _target_size(picture.width, picture.height, self.max_pixels)
         if resized is not None:
             picture = picture.resize(resized)
-        messages = _build_messages(image, template)
+        messages = _build_messages(template)
         text = self._processor.apply_chat_template(
             messages,
             tokenize=False,

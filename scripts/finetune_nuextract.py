@@ -47,14 +47,8 @@ def _messages(example: dict[str, Any]) -> list[dict[str, Any]]:
     from phaxtract.nuextract_engine import build_extraction_text
 
     return [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": example["image"]},
-                {"type": "text", "text": build_extraction_text(example["template"])},
-            ],
-        },
-        {"role": "assistant", "content": [{"type": "text", "text": example["output"]}]},
+        {"role": "user", "content": build_extraction_text(example["template"])},
+        {"role": "assistant", "content": example["output"]},
     ]
 
 
