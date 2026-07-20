@@ -190,10 +190,7 @@ class NuExtractEngine:
         if resized is not None:
             picture = picture.resize(resized)
         messages = _build_messages(image)
-        # Use the processor-level chat template (not the tokenizer's): it inserts the
-        # vision placeholder tokens that the Qwen-VL image processor then expands. The
-        # tokenizer-only template drops them for Qwen2.5-VL (NuExtract-2.0).
-        text = self._processor.apply_chat_template(
+        text = self._processor.tokenizer.apply_chat_template(
             messages,
             template=template,
             tokenize=False,

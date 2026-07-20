@@ -55,7 +55,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="QLoRA fine-tune NuExtract on gold.")
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="Dir with train/val JSONL")
     parser.add_argument("--out", type=Path, default=OUT_DIR, help="Adapter output dir")
-    parser.add_argument("--model", default="numind/NuExtract-2.0-4B", help="Base model id")
+    parser.add_argument("--model", default="numind/NuExtract3", help="Base model id")
     parser.add_argument("--epochs", type=float, default=3.0, help="Training epochs")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
     parser.add_argument("--lora-r", type=int, default=16, help="LoRA rank")
@@ -125,7 +125,7 @@ def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
         texts: list[str] = []
         images: list[list[Any]] = []
         for example in batch:
-            text = processor.apply_chat_template(
+            text = processor.tokenizer.apply_chat_template(
                 _messages(example), template=example["template"], tokenize=False
             )
             texts.append(text)
