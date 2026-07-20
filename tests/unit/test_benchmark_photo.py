@@ -110,6 +110,18 @@ def test_evaluate_perfect_match() -> None:
     assert report.cell_precision == 1.0
 
 
+def test_evaluate_reports_progress() -> None:
+    expected = _expected_statement("3614810004843", "2026-05", 5)
+    engine = _FakeEngine({"a.jpg": {"products": []}, "b.jpg": {"products": []}})
+    seen: list[tuple[int, int, str]] = []
+    evaluate_photo_dataset(
+        [("a.jpg", expected), ("b.jpg", expected)],
+        engine,
+        on_progress=lambda i, total, name: seen.append((i, total, name)),
+    )
+    assert seen == [(1, 2, "a.jpg"), (2, 2, "b.jpg")]
+
+
 def test_evaluate_detects_wrong_quantity() -> None:
     expected = _expected_statement("3614810004843", "2026-05", 5)
     engine = _FakeEngine(

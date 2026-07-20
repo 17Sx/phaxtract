@@ -87,8 +87,14 @@ def main() -> None:
         max_new_tokens=args.max_new_tokens,
     )
     print(f"Loading {args.model} … (first run downloads the model)")
+
+    def _progress(index: int, total: int, name: str) -> None:
+        print(f"  [{index}/{total}] {name}", flush=True)
+
     try:
-        report = evaluate_photo_dataset([(p.image, p.expected) for p in pairs], engine)
+        report = evaluate_photo_dataset(
+            [(p.image, p.expected) for p in pairs], engine, on_progress=_progress
+        )
     except ExtractionDependencyError as exc:
         raise SystemExit(f"Error — {exc}") from exc
 

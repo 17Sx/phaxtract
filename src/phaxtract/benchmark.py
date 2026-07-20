@@ -12,6 +12,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Callable
 from typing import TYPE_CHECKING, NamedTuple
 
 from phaxtract.schema import Statement
@@ -226,12 +227,21 @@ def evaluate_photo_dataset(
     engine: ExtractionEngine,
     *,
     template: str | None = None,
+    on_progress: Callable[[int, int, str], None] | None = None,
 ) -> DatasetReport:
-    """Run ``engine`` over each ``(image, expected)`` pair and aggregate the scores."""
+    """Run ``engine`` over each ``(image, expected)`` pair and aggregate the scores.
+
+    ``on_progress(index, total, name)`` is called before each extraction (1-based
+    index), letting a caller show progress during a long GPU run.
+    """
     from phaxtract.extract_ai import extract_statement_from_image
 
+    total = len(pairs)
     named_reports: list[tuple[str, BenchmarkReport]] = []
-    for image, expected in pairs:
+    for index, (image, expected) in enumerate(pairs, start=1):
+        name = Path(image).name
+        if on_progress is not None:
+            on_progress(index, total, name)
         actual = extract_statement_from_image(image, engine=engine, template=template)
-        named_reports.append((Path(image).name, compare_statements(expected, actual)))
+        named_reports.append((name, compare_statements(expected, actual)))
     return aggregate_reports(named_reports)
