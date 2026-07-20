@@ -28,8 +28,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "gold" / "finetune"
 OUT_DIR = ROOT / "gold" / "adapter"
 
-# LoRA on the language-model + vision projections (Qwen2.5-VL family).
-_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+# LoRA target projections. Attention-only is lighter (fewer stored activations at
+# backward); the full set (with the MLP projections) adapts more but costs more VRAM.
+_ATTN_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
+_MLP_MODULES = ["gate_proj", "up_proj", "down_proj"]
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -62,6 +64,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha")
     parser.add_argument("--grad-accum", type=int, default=8, help="Gradient accumulation steps")
     parser.add_argument("--max-pixels", type=int, default=500_000, help="Cap image resolution")
+    parser.add_argument(
+        "--attn-only", action="store_true", help="LoRA on attention only (lower VRAM)"
+    )
     return parser.parse_args()
 
 
@@ -111,6 +116,7 @@ def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
     )
     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
     model.enable_input_require_grads()  # keep gradients flowing with checkpointing + PEFT
+    target_modules = _ATTN_MODULES if args.attn_only else _ATTN_MODULES + _MLP_MODULES
     model = get_peft_model(
         model,
         LoraConfig(
@@ -118,7 +124,7 @@ def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
             lora_alpha=args.lora_alpha,
             lora_dropout=0.05,
             bias="none",
-            target_modules=_TARGET_MODULES,
+            target_modules=target_modules,
             task_type="CAUSAL_LM",
         ),
     )
