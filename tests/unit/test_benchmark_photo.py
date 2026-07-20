@@ -149,6 +149,44 @@ def test_discover_pairs_matches_by_stem(tmp_path: Path) -> None:
     assert pairs[0].expected.lines[0].code_produit == "3614810004843"
 
 
+def test_discover_pairs_matches_trailing_digit_suffix(tmp_path: Path) -> None:
+    # Real gold: converted stem is `X`, the image adds a trailing `_<digits>` frame id.
+    converted = tmp_path / "converted"
+    images = tmp_path / "images"
+    converted.mkdir()
+    images.mkdir()
+    base = "136_310004022_250909_250909_021744"
+    (converted / f"{base}.expected.json").write_text(
+        _expected_statement("3614810004843", "2026-05", 1).model_dump_json(),
+        encoding="utf-8",
+    )
+    (images / f"{base}_601.JPG").write_bytes(b"img")
+
+    pairs, unmatched = discover_pairs(converted, images)
+
+    assert unmatched == []
+    assert len(pairs) == 1
+    assert pairs[0].image.name == f"{base}_601.JPG"
+
+
+def test_discover_pairs_does_not_cross_match_different_ids(tmp_path: Path) -> None:
+    # A different record must NOT be paired just because both are numeric.
+    converted = tmp_path / "converted"
+    images = tmp_path / "images"
+    converted.mkdir()
+    images.mkdir()
+    (converted / "20_110000480_251023_251027_040543.expected.json").write_text(
+        _expected_statement("3614810004843", "2026-05", 1).model_dump_json(),
+        encoding="utf-8",
+    )
+    (images / "20_110000705_250114_250115_120740_495.JPG").write_bytes(b"img")
+
+    pairs, unmatched = discover_pairs(converted, images)
+
+    assert pairs == []
+    assert unmatched == ["20_110000480_251023_251027_040543.expected.json"]
+
+
 def test_discover_pairs_reports_unmatched(tmp_path: Path) -> None:
     converted = tmp_path / "converted"
     images = tmp_path / "images"

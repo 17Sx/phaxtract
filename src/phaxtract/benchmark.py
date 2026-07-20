@@ -9,6 +9,7 @@ pairs, and :func:`aggregate_reports` micro-averages the per-file results.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -19,6 +20,13 @@ if TYPE_CHECKING:
     from phaxtract.nuextract_engine import ExtractionEngine
 
 _IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".tif", ".tiff")
+_NORMALIZE = re.compile(r"[^a-z0-9]")
+# Photos add a trailing `_<frame-id>` to the gold stem, e.g. `..._021744` -> `..._021744_601`.
+_TRAILING_DIGITS = re.compile(r"^(.*)_\d+$")
+
+
+def _norm(name: str) -> str:
+    return _NORMALIZE.sub("", name.lower())
 
 
 @dataclass
@@ -160,22 +168,46 @@ class PhotoPair(NamedTuple):
     expected: Statement
 
 
-def discover_pairs(converted_dir: Path, images_dir: Path) -> tuple[list[PhotoPair], list[str]]:
-    """Pair each ``*.expected.json`` under ``converted_dir`` with an image by stem.
+class _ImageIndex:
+    """Lookup tables to match a gold stem to an image file, most-specific first."""
 
-    Returns ``(pairs, unmatched)`` where ``unmatched`` lists the expected-file names
-    that had no sibling image (case-insensitive extension match).
+    def __init__(self, images_dir: Path) -> None:
+        self.by_stem: dict[str, Path] = {}
+        self.by_norm: dict[str, Path] = {}
+        self.by_prefix: dict[str, list[Path]] = {}
+        for path in sorted(images_dir.rglob("*")):
+            if path.suffix.lower() not in _IMAGE_EXTS:
+                continue
+            self.by_stem.setdefault(path.stem, path)
+            self.by_norm.setdefault(_norm(path.stem), path)
+            trailing = _TRAILING_DIGITS.match(path.stem)
+            if trailing:
+                self.by_prefix.setdefault(trailing.group(1), []).append(path)
+
+    def match(self, stem: str) -> Path | None:
+        """Try exact stem, then a `stem_<digits>` image, then a normalized stem."""
+        if stem in self.by_stem:
+            return self.by_stem[stem]
+        prefix_hits = self.by_prefix.get(stem)
+        if prefix_hits:
+            return sorted(prefix_hits)[0]
+        return self.by_norm.get(_norm(stem))
+
+
+def discover_pairs(converted_dir: Path, images_dir: Path) -> tuple[list[PhotoPair], list[str]]:
+    """Pair each ``*.expected.json`` under ``converted_dir`` with its source image.
+
+    Matching tries, in order: exact stem, then an image whose stem is the gold stem
+    plus a trailing ``_<digits>`` frame id, then a normalized (lowercased,
+    alphanumeric-only) stem. Returns ``(pairs, unmatched)`` where ``unmatched`` lists
+    the expected-file names that found no image.
     """
-    images_by_stem = {
-        path.stem: path
-        for path in sorted(images_dir.rglob("*"))
-        if path.suffix.lower() in _IMAGE_EXTS
-    }
+    index = _ImageIndex(images_dir)
     pairs: list[PhotoPair] = []
     unmatched: list[str] = []
     for expected_path in sorted(converted_dir.glob("*.expected.json")):
         stem = expected_path.name.removesuffix(".expected.json")
-        image = images_by_stem.get(stem)
+        image = index.match(stem)
         if image is None:
             unmatched.append(expected_path.name)
             continue
