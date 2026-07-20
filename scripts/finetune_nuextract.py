@@ -61,12 +61,17 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--lora-r", type=int, default=16, help="LoRA rank")
     parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha")
     parser.add_argument("--grad-accum", type=int, default=8, help="Gradient accumulation steps")
-    parser.add_argument("--max-pixels", type=int, default=1_000_000, help="Cap image resolution")
+    parser.add_argument("--max-pixels", type=int, default=500_000, help="Cap image resolution")
     return parser.parse_args()
 
 
 def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
     args = _parse_args()
+
+    # Reduce allocator fragmentation before torch initializes (helps fit a 12 GB GPU).
+    import os
+
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
     import torch
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
