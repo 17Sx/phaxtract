@@ -40,16 +40,14 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _messages(example: dict[str, Any]) -> list[dict[str, Any]]:
-    """User turn = image + inline template; assistant turn = the target JSON output.
+    """User turn (vision placeholder) + assistant turn (target JSON output).
 
-    Must match the inference-time prompt exactly (see build_extraction_text).
+    Must match inference exactly (see build_messages). The schema is passed via the
+    template= kwarg to apply_chat_template, not embedded here.
     """
-    from phaxtract.nuextract_engine import build_extraction_text
+    from phaxtract.nuextract_engine import build_messages
 
-    return [
-        {"role": "user", "content": build_extraction_text(example["template"])},
-        {"role": "assistant", "content": example["output"]},
-    ]
+    return build_messages(output=example["output"])
 
 
 def _parse_args() -> argparse.Namespace:
@@ -160,7 +158,9 @@ def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
         texts: list[str] = []
         images: list[list[Any]] = []
         for example in batch:
-            text = processor.apply_chat_template(_messages(example), tokenize=False)
+            text = processor.tokenizer.apply_chat_template(
+                _messages(example), template=example["template"], tokenize=False
+            )
             texts.append(text)
             picture = Image.open(example["image"]).convert("RGB")
             resized = _target_size(picture.width, picture.height, args.max_pixels)

@@ -15,9 +15,9 @@ import pytest
 from phaxtract.nuextract_engine import (
     ExtractionDependencyError,
     NuExtractEngine,
-    _build_messages,
     _resolve_device,
     _target_size,
+    build_messages,
 )
 
 
@@ -56,12 +56,17 @@ def test_resolve_device_auto() -> None:
     assert _resolve_device(None, cuda_available=False) == "cpu"
 
 
-def test_build_messages_has_vision_placeholder_and_inline_template() -> None:
-    messages = _build_messages('{"products": []}')
-    content = messages[0]["content"]
+def test_build_messages_user_only_has_vision_placeholder() -> None:
+    messages = build_messages()
+    assert len(messages) == 1
     assert messages[0]["role"] == "user"
-    assert "<|image_pad|>" in content  # manual vision placeholder
-    assert '{"products": []}' in content  # template embedded in the user text
+    assert "<|image_pad|>" in messages[0]["content"]  # manual vision placeholder
+
+
+def test_build_messages_with_output_adds_assistant_turn() -> None:
+    messages = build_messages(output='{"products": []}')
+    assert [m["role"] for m in messages] == ["user", "assistant"]
+    assert messages[1]["content"] == '{"products": []}'
 
 
 def test_load_without_backend_raises_dependency_error(monkeypatch: pytest.MonkeyPatch) -> None:

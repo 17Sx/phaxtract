@@ -71,20 +71,20 @@ def _target_size(width: int, height: int, max_pixels: int | None) -> tuple[int, 
     return max(1, int(width * scale)), max(1, int(height * scale))
 
 
-def build_extraction_text(template: str) -> str:
-    """User-turn text: the vision placeholder, the inline template, then the instruction.
+def build_messages(output: str | None = None) -> list[dict[str, Any]]:
+    """Chat messages for a single-image extraction turn (NuExtract-2.0 native flow).
 
-    The NuExtract-2.0 chat template does not emit vision tokens from image content
-    ("Image features and image tokens do not match, tokens: 0"), so we prepend the
-    placeholder ourselves and embed the template inline. Fine-tuning learns this exact
-    prompt shape, so training and inference must build it identically.
+    The user turn is just the vision placeholder — inserted manually because the
+    NuExtract-2.0 chat template does not emit vision tokens from image content
+    ("tokens: 0"). The extraction schema is supplied separately via the ``template=``
+    kwarg to ``apply_chat_template`` (NuExtract's native mechanism, required for the
+    model to actually extract). When ``output`` is given, an assistant turn is added
+    for training targets. Inference and training must build this identically.
     """
-    return f"{_VISION_PLACEHOLDER}# Template:\n{template}\n\n{_EXTRACT_INSTRUCTION}"
-
-
-def _build_messages(template: str) -> list[dict[str, Any]]:
-    """Build the chat message list for a single-image extraction turn."""
-    return [{"role": "user", "content": build_extraction_text(template)}]
+    messages: list[dict[str, Any]] = [{"role": "user", "content": _VISION_PLACEHOLDER}]
+    if output is not None:
+        messages.append({"role": "assistant", "content": output})
+    return messages
 
 
 def _import_backend() -> SimpleNamespace:  # pragma: no cover - requires the [ai] extra
@@ -197,9 +197,9 @@ class NuExtractEngine:
         resized = _target_size(picture.width, picture.height, self.max_pixels)
         if resized is not None:
             picture = picture.resize(resized)
-        messages = _build_messages(template)
-        text = self._processor.apply_chat_template(
-            messages,
+        text = self._processor.tokenizer.apply_chat_template(
+            build_messages(),
+            template=template,
             tokenize=False,
             add_generation_prompt=True,
         )
