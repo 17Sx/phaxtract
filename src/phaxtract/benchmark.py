@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Callable
 from typing import TYPE_CHECKING, NamedTuple
 
 from phaxtract.schema import Statement
