@@ -27,11 +27,6 @@ _INSTALL_HINT = (
 # extraction off the template; the instruction just frames the task.
 _EXTRACT_INSTRUCTION = "Extract the information according to the template."
 
-# Qwen2-VL vision placeholder. NuExtract-2.0's custom chat template ignores image
-# content, so we insert this marker into the text ourselves; the image processor then
-# expands ``<|image_pad|>`` to one token per vision patch.
-_VISION_PLACEHOLDER = "<|vision_start|><|image_pad|><|vision_end|>"
-
 
 class ExtractionDependencyError(RuntimeError):
     """Raised when the optional ``[ai]`` extra (torch/transformers) is missing."""
@@ -71,19 +66,25 @@ def _target_size(width: int, height: int, max_pixels: int | None) -> tuple[int, 
     return max(1, int(width * scale)), max(1, int(height * scale))
 
 
-def build_messages(output: str | None = None) -> list[dict[str, Any]]:
-    """Chat messages for a single-image extraction turn (NuExtract-2.0 native flow).
+def build_messages(image: str | Path, output: str | None = None) -> list[dict[str, Any]]:
+    """Chat messages for a single-image extraction turn (NuExtract native flow).
 
-    The user turn is just the vision placeholder — inserted manually because the
-    NuExtract-2.0 chat template does not emit vision tokens from image content
-    ("tokens: 0"). The extraction schema is supplied separately via the ``template=``
-    kwarg to ``apply_chat_template`` (NuExtract's native mechanism, required for the
-    model to actually extract). When ``output`` is given, an assistant turn is added
-    for training targets. Inference and training must build this identically.
+    The user turn carries the image and a short instruction; the extraction schema is
+    supplied separately via the ``template=`` kwarg to ``apply_chat_template``. When
+    ``output`` is given, an assistant turn is added (for training targets). Inference
+    and training must build this identically.
     """
-    messages: list[dict[str, Any]] = [{"role": "user", "content": _VISION_PLACEHOLDER}]
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "image": str(image)},
+                {"type": "text", "text": _EXTRACT_INSTRUCTION},
+            ],
+        }
+    ]
     if output is not None:
-        messages.append({"role": "assistant", "content": output})
+        messages.append({"role": "assistant", "content": [{"type": "text", "text": output}]})
     return messages
 
 
@@ -113,7 +114,7 @@ class NuExtractEngine:
     the recommended setting for structured extraction.
 
     Args:
-        model_id: HuggingFace model id (default ``numind/NuExtract-2.0-2B``).
+        model_id: HuggingFace model id (default ``numind/NuExtract3``).
         device: torch device (e.g. ``"cuda"``, ``"cpu"``); ``None`` auto-selects.
         max_new_tokens: generation cap for the JSON completion.
         thinking: enable NuExtract's reasoning mode; off for deterministic output.
@@ -126,7 +127,7 @@ class NuExtractEngine:
             model (e.g. from ``finetune_nuextract.py``). ``None`` uses the base model.
     """
 
-    model_id: str = "numind/NuExtract-2.0-2B"
+    model_id: str = "numind/NuExtract3"
     device: str | None = None
     max_new_tokens: int = 4096
     thinking: bool = False
@@ -198,10 +199,11 @@ class NuExtractEngine:
         if resized is not None:
             picture = picture.resize(resized)
         text = self._processor.tokenizer.apply_chat_template(
-            build_messages(),
+            build_messages(image),
             template=template,
             tokenize=False,
             add_generation_prompt=True,
+            enable_thinking=self.thinking,
         )
         inputs = self._processor(
             text=[text], images=[picture], padding=True, return_tensors="pt"

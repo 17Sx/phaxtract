@@ -23,7 +23,7 @@ from phaxtract.nuextract_engine import (
 
 def test_default_config() -> None:
     engine = NuExtractEngine()
-    assert engine.model_id == "numind/NuExtract-2.0-2B"
+    assert engine.model_id == "numind/NuExtract3"
     assert engine.thinking is False
     assert engine.max_new_tokens == 4096
     assert engine.device is None  # resolved lazily at load time
@@ -56,17 +56,17 @@ def test_resolve_device_auto() -> None:
     assert _resolve_device(None, cuda_available=False) == "cpu"
 
 
-def test_build_messages_user_only_has_vision_placeholder() -> None:
-    messages = build_messages()
+def test_build_messages_user_turn_carries_image() -> None:
+    messages = build_messages("photo.png")
     assert len(messages) == 1
     assert messages[0]["role"] == "user"
-    assert "<|image_pad|>" in messages[0]["content"]  # manual vision placeholder
+    assert {"type": "image", "image": "photo.png"} in messages[0]["content"]
 
 
 def test_build_messages_with_output_adds_assistant_turn() -> None:
-    messages = build_messages(output='{"products": []}')
+    messages = build_messages("photo.png", output='{"products": []}')
     assert [m["role"] for m in messages] == ["user", "assistant"]
-    assert messages[1]["content"] == '{"products": []}'
+    assert messages[1]["content"][0]["text"] == '{"products": []}'
 
 
 def test_load_without_backend_raises_dependency_error(monkeypatch: pytest.MonkeyPatch) -> None:

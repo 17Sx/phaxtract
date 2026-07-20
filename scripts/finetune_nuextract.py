@@ -40,21 +40,21 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _messages(example: dict[str, Any]) -> list[dict[str, Any]]:
-    """User turn (vision placeholder) + assistant turn (target JSON output).
+    """User turn (image + instruction) + assistant turn (target JSON output).
 
     Must match inference exactly (see build_messages). The schema is passed via the
     template= kwarg to apply_chat_template, not embedded here.
     """
     from phaxtract.nuextract_engine import build_messages
 
-    return build_messages(output=example["output"])
+    return build_messages(example["image"], output=example["output"])
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="QLoRA fine-tune NuExtract on gold.")
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="Dir with train/val JSONL")
     parser.add_argument("--out", type=Path, default=OUT_DIR, help="Adapter output dir")
-    parser.add_argument("--model", default="numind/NuExtract-2.0-2B", help="Base model id")
+    parser.add_argument("--model", default="numind/NuExtract3", help="Base model id")
     parser.add_argument("--epochs", type=float, default=3.0, help="Training epochs")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
     parser.add_argument("--lora-r", type=int, default=16, help="LoRA rank")

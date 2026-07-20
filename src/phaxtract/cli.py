@@ -69,7 +69,7 @@ def extract(
     ] = None,
     model: Annotated[
         str, typer.Option("--model", help="NuExtract HuggingFace model id")
-    ] = "numind/NuExtract-2.0-2B",
+    ] = "numind/NuExtract3",
     adapter: Annotated[
         str | None,
         typer.Option("--adapter", help="Path to a trained LoRA adapter to apply"),
