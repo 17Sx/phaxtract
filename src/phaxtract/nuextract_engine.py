@@ -187,6 +187,7 @@ class NuExtractEngine:
             template=template,
             tokenize=False,
             add_generation_prompt=True,
+            enable_thinking=self.thinking,
         )
         inputs = self._processor(
             text=[text], images=[picture], padding=True, return_tensors="pt"

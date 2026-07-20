@@ -42,7 +42,13 @@ def main() -> None:
         "--4bit", dest="four_bit", action="store_true", help="Load 4-bit quantized (12 GB GPU)"
     )
     parser.add_argument(
+        "--thinking", action="store_true", help="Enable NuExtract reasoning (dense tables)"
+    )
+    parser.add_argument(
         "--max-pixels", type=int, default=None, help="Cap input image resolution (w x h)"
+    )
+    parser.add_argument(
+        "--max-new-tokens", type=int, default=4096, help="Generation token budget"
     )
     parser.add_argument("--limit", type=int, default=None, help="Benchmark only the first N pairs")
     parser.add_argument("--out", type=Path, default=None, help="Write the full JSON report here")
@@ -56,7 +62,11 @@ def main() -> None:
         return
 
     engine = NuExtractEngine(
-        model_id=args.model, load_in_4bit=args.four_bit, max_pixels=args.max_pixels
+        model_id=args.model,
+        load_in_4bit=args.four_bit,
+        thinking=args.thinking,
+        max_pixels=args.max_pixels,
+        max_new_tokens=args.max_new_tokens,
     )
     print(f"Loading {args.model} … (first run downloads the model)")
     try:

@@ -74,17 +74,31 @@ def extract(
         bool,
         typer.Option("--4bit", help="Load the model 4-bit quantized (fits a 12 GB GPU)"),
     ] = False,
+    thinking: Annotated[
+        bool,
+        typer.Option("--thinking", help="Enable NuExtract reasoning (better on dense tables)"),
+    ] = False,
     max_pixels: Annotated[
         int | None,
         typer.Option("--max-pixels", help="Cap input image resolution (width x height)"),
     ] = None,
+    max_new_tokens: Annotated[
+        int,
+        typer.Option("--max-new-tokens", help="Generation token budget (raise for thinking)"),
+    ] = 4096,
     pretty: Annotated[bool, typer.Option("--pretty", help="Indent the JSON output")] = False,
 ) -> None:
     """Extract a pharmacy statement from a photo/scan via NuExtract.
 
     Requires the optional AI dependencies (the "ai" extra); see the README.
     """
-    engine = NuExtractEngine(model_id=model, load_in_4bit=four_bit, max_pixels=max_pixels)
+    engine = NuExtractEngine(
+        model_id=model,
+        load_in_4bit=four_bit,
+        thinking=thinking,
+        max_pixels=max_pixels,
+        max_new_tokens=max_new_tokens,
+    )
     try:
         statement = extract_statement_from_image(image, engine=engine)
     except ExtractionDependencyError as exc:
