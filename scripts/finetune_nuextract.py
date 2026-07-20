@@ -64,6 +64,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--grad-accum", type=int, default=8, help="Gradient accumulation steps")
     parser.add_argument("--max-pixels", type=int, default=500_000, help="Cap image resolution")
     parser.add_argument(
+        "--max-output-chars",
+        type=int,
+        default=None,
+        help="Skip training examples whose target JSON is longer (product-heavy = long "
+        "sequence = VRAM); the layout lesson still comes from the shorter statements",
+    )
+    parser.add_argument(
         "--attn-only", action="store_true", help="LoRA on attention only (lower VRAM)"
     )
     return parser.parse_args()
@@ -93,6 +100,10 @@ def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
     train = _read_jsonl(args.data / "train.jsonl")
     val_path = args.data / "val.jsonl"
     val = _read_jsonl(val_path) if val_path.exists() else []
+    if args.max_output_chars is not None:
+        kept = [ex for ex in train if len(ex["output"]) <= args.max_output_chars]
+        print(f"Skipped {len(train) - len(kept)} long examples (> {args.max_output_chars} chars)")
+        train = kept
     if not train:
         raise SystemExit(f"No training examples in {args.data / 'train.jsonl'}")
     print(f"Train: {len(train)}  Val: {len(val)}  Base: {args.model}")
