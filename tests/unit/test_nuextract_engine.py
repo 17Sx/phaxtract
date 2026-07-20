@@ -17,6 +17,7 @@ from phaxtract.nuextract_engine import (
     NuExtractEngine,
     _build_messages,
     _resolve_device,
+    _target_size,
 )
 
 
@@ -26,6 +27,22 @@ def test_default_config() -> None:
     assert engine.thinking is False
     assert engine.max_new_tokens == 4096
     assert engine.device is None  # resolved lazily at load time
+    assert engine.load_in_4bit is False
+    assert engine.max_pixels is None
+
+
+def test_target_size_within_budget_is_none() -> None:
+    assert _target_size(800, 600, None) is None
+    assert _target_size(800, 600, 1_000_000) is None  # 480k <= 1M
+
+
+def test_target_size_downscales_and_preserves_aspect() -> None:
+    size = _target_size(4000, 3000, 1_000_000)
+    assert size is not None
+    width, height = size
+    assert width * height <= 1_000_000
+    # aspect ratio preserved (4:3)
+    assert abs(width / height - 4 / 3) < 0.01
 
 
 def test_resolve_device_prefers_explicit() -> None:

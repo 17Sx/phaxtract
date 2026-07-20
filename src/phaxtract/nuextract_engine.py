@@ -53,6 +53,19 @@ def _resolve_device(explicit: str | None, *, cuda_available: bool) -> str:
     return "cuda" if cuda_available else "cpu"
 
 
+def _target_size(width: int, height: int, max_pixels: int | None) -> tuple[int, int] | None:
+    """Return a downscaled ``(width, height)`` under ``max_pixels``, or ``None``.
+
+    ``None`` means no resize is needed (``max_pixels`` unset or already within
+    budget). Aspect ratio is preserved. Capping resolution cuts the number of vision
+    tokens, which is the main driver of activation memory for large document scans.
+    """
+    if max_pixels is None or width * height <= max_pixels:
+        return None
+    scale = (max_pixels / (width * height)) ** 0.5
+    return max(1, int(width * scale)), max(1, int(height * scale))
+
+
 def _build_messages(image: str | Path) -> list[dict[str, Any]]:
     """Build the chat message list for a single-image extraction turn."""
     return [
@@ -69,12 +82,17 @@ def _build_messages(image: str | Path) -> list[dict[str, Any]]:
 def _import_backend() -> SimpleNamespace:  # pragma: no cover - requires the [ai] extra
     """Import torch + transformers lazily; raise ``ImportError`` if unavailable."""
     import torch
-    from transformers import AutoModelForImageTextToText, AutoProcessor
+    from transformers import (
+        AutoModelForImageTextToText,
+        AutoProcessor,
+        BitsAndBytesConfig,
+    )
 
     return SimpleNamespace(
         torch=torch,
         model_cls=AutoModelForImageTextToText,
         processor_cls=AutoProcessor,
+        bnb_config_cls=BitsAndBytesConfig,
     )
 
 
@@ -91,12 +109,19 @@ class NuExtractEngine:
         device: torch device (e.g. ``"cuda"``, ``"cpu"``); ``None`` auto-selects.
         max_new_tokens: generation cap for the JSON completion.
         thinking: enable NuExtract's reasoning mode; off for deterministic output.
+        load_in_4bit: load the model 4-bit quantized (bitsandbytes). Cuts VRAM ~3-4x
+            (a 4B model fits comfortably on a 12 GB GPU) for a negligible accuracy
+            cost on extraction. Requires a CUDA device.
+        max_pixels: cap the input image resolution (width x height). Downscaling large
+            scans reduces vision tokens and activation memory. ``None`` keeps full size.
     """
 
     model_id: str = "numind/NuExtract3"
     device: str | None = None
     max_new_tokens: int = 4096
     thinking: bool = False
+    load_in_4bit: bool = False
+    max_pixels: int | None = None
 
     _loaded: bool = field(default=False, init=False, repr=False)
     _torch: Any = field(default=None, init=False, repr=False)
@@ -123,13 +148,21 @@ class NuExtractEngine:
     ) -> None:
         torch = backend.torch
         device = _resolve_device(self.device, cuda_available=torch.cuda.is_available())
-        dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
-        self._model = backend.model_cls.from_pretrained(
-            self.model_id,
-            torch_dtype=dtype,
-            device_map="auto" if device.startswith("cuda") else None,
-            trust_remote_code=True,
-        ).eval()
+        on_cuda = device.startswith("cuda")
+        dtype = torch.bfloat16 if on_cuda else torch.float32
+        kwargs: dict[str, Any] = {"trust_remote_code": True}
+        if self.load_in_4bit:
+            kwargs["quantization_config"] = backend.bnb_config_cls(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=dtype,
+                bnb_4bit_use_double_quant=True,
+            )
+            kwargs["device_map"] = "auto"
+        else:
+            kwargs["torch_dtype"] = dtype
+            kwargs["device_map"] = "auto" if on_cuda else None
+        self._model = backend.model_cls.from_pretrained(self.model_id, **kwargs).eval()
         self._processor = backend.processor_cls.from_pretrained(
             self.model_id, trust_remote_code=True
         )
@@ -145,6 +178,9 @@ class NuExtractEngine:
 
         self.load()
         picture = Image.open(image).convert("RGB")
+        resized = _target_size(picture.width, picture.height, self.max_pixels)
+        if resized is not None:
+            picture = picture.resize(resized)
         messages = _build_messages(image)
         text = self._processor.tokenizer.apply_chat_template(
             messages,
