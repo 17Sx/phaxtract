@@ -29,6 +29,7 @@ def test_default_config() -> None:
     assert engine.device is None  # resolved lazily at load time
     assert engine.load_in_4bit is False
     assert engine.max_pixels is None
+    assert engine.adapter_path is None
 
 
 def test_target_size_within_budget_is_none() -> None:

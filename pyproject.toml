@@ -94,7 +94,12 @@ mypy_path = "src"
 # job (only `[dev]` is installed), and ship partial/no stubs. They are imported
 # lazily inside nuextract_engine, so relax missing-import errors for them only.
 [[tool.mypy.overrides]]
-module = ["torch", "torch.*", "transformers", "transformers.*", "PIL", "PIL.*"]
+module = [
+    "torch", "torch.*",
+    "transformers", "transformers.*",
+    "peft", "peft.*",
+    "PIL", "PIL.*",
+]
 ignore_missing_imports = true
 
 [tool.coverage.run]

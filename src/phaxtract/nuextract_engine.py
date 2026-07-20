@@ -114,6 +114,8 @@ class NuExtractEngine:
             cost on extraction. Requires a CUDA device.
         max_pixels: cap the input image resolution (width x height). Downscaling large
             scans reduces vision tokens and activation memory. ``None`` keeps full size.
+        adapter_path: path to a trained PEFT/LoRA adapter to apply on top of the base
+            model (e.g. from ``finetune_nuextract.py``). ``None`` uses the base model.
     """
 
     model_id: str = "numind/NuExtract3"
@@ -122,6 +124,7 @@ class NuExtractEngine:
     thinking: bool = False
     load_in_4bit: bool = False
     max_pixels: int | None = None
+    adapter_path: str | None = None
 
     _loaded: bool = field(default=False, init=False, repr=False)
     _torch: Any = field(default=None, init=False, repr=False)
@@ -162,7 +165,12 @@ class NuExtractEngine:
         else:
             kwargs["torch_dtype"] = dtype
             kwargs["device_map"] = "auto" if on_cuda else None
-        self._model = backend.model_cls.from_pretrained(self.model_id, **kwargs).eval()
+        model = backend.model_cls.from_pretrained(self.model_id, **kwargs)
+        if self.adapter_path is not None:
+            from peft import PeftModel
+
+            model = PeftModel.from_pretrained(model, self.adapter_path)
+        self._model = model.eval()
         self._processor = backend.processor_cls.from_pretrained(
             self.model_id, trust_remote_code=True
         )

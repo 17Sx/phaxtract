@@ -39,6 +39,9 @@ def main() -> None:
         "--model", default="numind/NuExtract3", help="NuExtract HuggingFace model id"
     )
     parser.add_argument(
+        "--adapter", default=None, help="Path to a trained LoRA adapter to evaluate"
+    )
+    parser.add_argument(
         "--4bit", dest="four_bit", action="store_true", help="Load 4-bit quantized (12 GB GPU)"
     )
     parser.add_argument(
@@ -63,6 +66,7 @@ def main() -> None:
 
     engine = NuExtractEngine(
         model_id=args.model,
+        adapter_path=args.adapter,
         load_in_4bit=args.four_bit,
         thinking=args.thinking,
         max_pixels=args.max_pixels,
