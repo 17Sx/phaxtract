@@ -38,6 +38,12 @@ def main() -> None:
     parser.add_argument(
         "--model", default="numind/NuExtract3", help="NuExtract HuggingFace model id"
     )
+    parser.add_argument(
+        "--4bit", dest="four_bit", action="store_true", help="Load 4-bit quantized (12 GB GPU)"
+    )
+    parser.add_argument(
+        "--max-pixels", type=int, default=None, help="Cap input image resolution (w x h)"
+    )
     parser.add_argument("--limit", type=int, default=None, help="Benchmark only the first N pairs")
     parser.add_argument("--out", type=Path, default=None, help="Write the full JSON report here")
     args = parser.parse_args()
@@ -49,7 +55,9 @@ def main() -> None:
         print(f"No (image, gold) pairs found under {args.images} / {args.converted}")
         return
 
-    engine = NuExtractEngine(model_id=args.model)
+    engine = NuExtractEngine(
+        model_id=args.model, load_in_4bit=args.four_bit, max_pixels=args.max_pixels
+    )
     print(f"Loading {args.model} … (first run downloads the model)")
     try:
         report = evaluate_photo_dataset([(p.image, p.expected) for p in pairs], engine)

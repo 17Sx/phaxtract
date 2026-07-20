@@ -70,13 +70,21 @@ def extract(
     model: Annotated[
         str, typer.Option("--model", help="NuExtract HuggingFace model id")
     ] = "numind/NuExtract3",
+    four_bit: Annotated[
+        bool,
+        typer.Option("--4bit", help="Load the model 4-bit quantized (fits a 12 GB GPU)"),
+    ] = False,
+    max_pixels: Annotated[
+        int | None,
+        typer.Option("--max-pixels", help="Cap input image resolution (width x height)"),
+    ] = None,
     pretty: Annotated[bool, typer.Option("--pretty", help="Indent the JSON output")] = False,
 ) -> None:
     """Extract a pharmacy statement from a photo/scan via NuExtract.
 
     Requires the optional AI dependencies (the "ai" extra); see the README.
     """
-    engine = NuExtractEngine(model_id=model)
+    engine = NuExtractEngine(model_id=model, load_in_4bit=four_bit, max_pixels=max_pixels)
     try:
         statement = extract_statement_from_image(image, engine=engine)
     except ExtractionDependencyError as exc:
