@@ -23,7 +23,7 @@ from phaxtract.nuextract_engine import (
 
 def test_default_config() -> None:
     engine = NuExtractEngine()
-    assert engine.model_id == "numind/NuExtract3"
+    assert engine.model_id == "numind/NuExtract-2.0-2B"
     assert engine.thinking is False
     assert engine.max_new_tokens == 4096
     assert engine.device is None  # resolved lazily at load time
@@ -56,12 +56,13 @@ def test_resolve_device_auto() -> None:
     assert _resolve_device(None, cuda_available=False) == "cpu"
 
 
-def test_build_messages_carries_image_and_instruction() -> None:
-    messages = _build_messages("photo.png")
+def test_build_messages_carries_image_and_inline_template() -> None:
+    messages = _build_messages("photo.png", '{"products": []}')
     content = messages[0]["content"]
     assert messages[0]["role"] == "user"
     assert {"type": "image", "image": "photo.png"} in content
-    assert any(part["type"] == "text" and part["text"] for part in content)
+    text = next(part["text"] for part in content if part["type"] == "text")
+    assert '{"products": []}' in text  # template embedded in the user text
 
 
 def test_load_without_backend_raises_dependency_error(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -69,7 +69,7 @@ def extract(
     ] = None,
     model: Annotated[
         str, typer.Option("--model", help="NuExtract HuggingFace model id")
-    ] = "numind/NuExtract3",
+    ] = "numind/NuExtract-2.0-2B",
     four_bit: Annotated[
         bool,
         typer.Option("--4bit", help="Load the model 4-bit quantized (fits a 12 GB GPU)"),

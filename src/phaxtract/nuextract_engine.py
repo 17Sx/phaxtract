@@ -66,14 +66,26 @@ def _target_size(width: int, height: int, max_pixels: int | None) -> tuple[int, 
     return max(1, int(width * scale)), max(1, int(height * scale))
 
 
-def _build_messages(image: str | Path) -> list[dict[str, Any]]:
+def build_extraction_text(template: str) -> str:
+    """User-turn text: the extraction template embedded inline, then the instruction.
+
+    Embedding the template in the text (rather than passing NuExtract's ``template=``
+    chat-template kwarg) lets the standard Qwen-VL chat template insert the image
+    placeholder tokens. The custom NuExtract-2.0 template drops them, causing
+    "Image features and image tokens do not match, tokens: 0". Fine-tuning learns this
+    exact prompt shape, so training and inference must build it identically.
+    """
+    return f"# Template:\n{template}\n\n{_EXTRACT_INSTRUCTION}"
+
+
+def _build_messages(image: str | Path, template: str) -> list[dict[str, Any]]:
     """Build the chat message list for a single-image extraction turn."""
     return [
         {
             "role": "user",
             "content": [
                 {"type": "image", "image": str(image)},
-                {"type": "text", "text": _EXTRACT_INSTRUCTION},
+                {"type": "text", "text": build_extraction_text(template)},
             ],
         }
     ]
@@ -105,7 +117,7 @@ class NuExtractEngine:
     the recommended setting for structured extraction.
 
     Args:
-        model_id: HuggingFace model id (default ``numind/NuExtract3``).
+        model_id: HuggingFace model id (default ``numind/NuExtract-2.0-2B``).
         device: torch device (e.g. ``"cuda"``, ``"cpu"``); ``None`` auto-selects.
         max_new_tokens: generation cap for the JSON completion.
         thinking: enable NuExtract's reasoning mode; off for deterministic output.
@@ -118,7 +130,7 @@ class NuExtractEngine:
             model (e.g. from ``finetune_nuextract.py``). ``None`` uses the base model.
     """
 
-    model_id: str = "numind/NuExtract3"
+    model_id: str = "numind/NuExtract-2.0-2B"
     device: str | None = None
     max_new_tokens: int = 4096
     thinking: bool = False
@@ -189,13 +201,11 @@ class NuExtractEngine:
         resized = _target_size(picture.width, picture.height, self.max_pixels)
         if resized is not None:
             picture = picture.resize(resized)
-        messages = _build_messages(image)
-        text = self._processor.tokenizer.apply_chat_template(
+        messages = _build_messages(image, template)
+        text = self._processor.apply_chat_template(
             messages,
-            template=template,
             tokenize=False,
             add_generation_prompt=True,
-            enable_thinking=self.thinking,
         )
         inputs = self._processor(
             text=[text], images=[picture], padding=True, return_tensors="pt"

@@ -40,7 +40,7 @@ def main() -> None:
     )
     parser.add_argument("--images", type=Path, default=IMAGES_DIR, help="Source images dir")
     parser.add_argument(
-        "--model", default="numind/NuExtract3", help="NuExtract HuggingFace model id"
+        "--model", default="numind/NuExtract-2.0-2B", help="NuExtract HuggingFace model id"
     )
     parser.add_argument(
         "--adapter", default=None, help="Path to a trained LoRA adapter to evaluate"
