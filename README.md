@@ -64,6 +64,13 @@ The model reads the image plus the extraction template and fills it; the raw out
 is mapped to a validated `Statement` by the same deterministic layer every path
 shares. The first run downloads the model from HuggingFace; everything else is offline.
 
+Benchmark NuExtract against the photo gold dataset (micro-averaged cell precision):
+
+```bash
+python scripts/benchmark_nuextract.py --limit 10       # quick smoke
+python scripts/benchmark_nuextract.py --out report.json
+```
+
 ## Project status
 
 **Phase 1 — Foundations** ✅ complete
@@ -76,7 +83,8 @@ Primary input is **photos/scans**, so the next priority is the **AI/photo path (
 - [x] Cell-by-cell benchmark + CLI
 - [x] Doc AI → `Statement` gold converter (real photo dataset)
 - [x] NuExtract photo extraction — template, mapping, inference engine, `extract` CLI
-- [ ] **Next:** benchmark NuExtract vs real gold (Phase 2)
+- [x] Benchmark harness — `scripts/benchmark_nuextract.py` (photo gold, micro precision)
+- [ ] **Next:** run the benchmark on the GPU server + fine-tune if precision < 90%
 - [ ] Native PDF extraction (Phase 3, deferred)
 
 See [ROADMAP](docs/ROADMAP.md) for details.

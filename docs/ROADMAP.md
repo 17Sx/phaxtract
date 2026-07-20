@@ -22,8 +22,9 @@ Turn the real photo dataset into measurable ground truth, then extract against i
 - [x] Extraction template + mapping raw output → `Statement`
 - [x] NuExtract 3 zero-shot inference (local GPU) — `nuextract_engine.py` +
       `extract_statement_from_image()` + `phaxtract extract <image>` CLI
-- [ ] Real-data benchmark harness — run `compare_statements` over the photo gold
-- [ ] Benchmark NuExtract vs real gold
+- [x] Real-data benchmark harness — `discover_pairs` + `evaluate_photo_dataset` +
+      `aggregate_reports` + `scripts/benchmark_nuextract.py`
+- [ ] Benchmark NuExtract vs real gold — **run** the harness on the GPU server
 - [ ] LoRA fine-tune if precision < 90%
 
 ## Phase 3 — Native PDF path (deferred)
