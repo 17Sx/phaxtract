@@ -60,6 +60,7 @@ gold/real/
 gold/images/
 gold/jsons/
 gold/converted/
+gold/finetune/
 gold/pairs/
 gold_pairs/
 data/
