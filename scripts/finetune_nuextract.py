@@ -97,6 +97,20 @@ def main() -> None:  # pragma: no cover - requires the [ai] extra and a GPU
         raise SystemExit(f"No training examples in {args.data / 'train.jsonl'}")
     print(f"Train: {len(train)}  Val: {len(val)}  Base: {args.model}")
 
+    # Fused cross-entropy (Liger) computes the LM loss without materializing the full
+    # [seq x vocab] logits — the allocation that OOMs long, product-heavy statements on
+    # a 12 GB GPU. Must be applied before the model is built. Best-effort.
+    try:
+        import liger_kernel.transformers as lk
+
+        if "2.0-4B" in args.model and hasattr(lk, "apply_liger_kernel_to_qwen2_5_vl"):
+            lk.apply_liger_kernel_to_qwen2_5_vl()
+        else:
+            lk.apply_liger_kernel_to_qwen2_vl()
+        print("Liger kernel applied (fused cross-entropy, lower VRAM).")
+    except Exception as exc:  # optional accelerator; never fatal
+        print(f"Liger kernel not applied ({exc}); long sequences may OOM.")
+
     # Route the (partially untyped) transformers factories through Any, as the engine
     # does, so strict mypy does not trip on their untyped `from_pretrained`.
     processor_cls: Any = AutoProcessor
