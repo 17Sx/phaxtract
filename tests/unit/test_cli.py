@@ -69,6 +69,22 @@ def test_extract_command_prints_to_stdout(
     assert "3614810004843" in result.stdout
 
 
+def test_extract_pdf_uses_native_path(tmp_path: Path) -> None:
+    from phaxtract.schema import Statement
+    from phaxtract.synth import render_statement_pdf
+
+    gold = Path(__file__).resolve().parents[2] / "gold" / "monthly_etat_des_ventes.expected.json"
+    expected = Statement.model_validate(json.loads(gold.read_text(encoding="utf-8")))
+    pdf = render_statement_pdf(expected, tmp_path / "m.pdf")
+    out = tmp_path / "out.json"
+
+    result = runner.invoke(app, ["extract", str(pdf), "--out", str(out)])
+    assert result.exit_code == 0, result.output
+    written = Statement.model_validate(json.loads(out.read_text(encoding="utf-8")))
+    assert written.document.statement_type == "monthly"
+    assert written.lines
+
+
 def test_extract_command_reports_missing_ai_extra(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

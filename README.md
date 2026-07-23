@@ -71,6 +71,29 @@ python scripts/benchmark_nuextract.py --limit 10       # quick smoke
 python scripts/benchmark_nuextract.py --out report.json
 ```
 
+### Extract a native-text PDF with pdfplumber
+
+Native-text PDFs need no AI and no GPU — pdfplumber reads the table directly.
+`pdfplumber` and `PyMuPDF` are core dependencies (no extra required):
+
+```bash
+# PDF -> canonical Statement JSON (stdout, or -o to a file)
+phaxtract extract statement.pdf --pretty
+phaxtract extract statement.pdf -o statement.json
+```
+
+Both **monthly** grids (product × month) and **period** transaction lists are
+supported; the same deterministic layer normalizes, reconciles and validates the
+output. The automatic native-vs-photo router is still deferred — the CLI dispatches
+on the file suffix (`.pdf` → native, image → NuExtract).
+
+Render synthetic gold PDFs from the versioned expected JSON (never committed):
+
+```bash
+python scripts/generate_gold.py            # render every gold/*.expected.json
+python scripts/generate_gold.py --list     # list the fixtures
+```
+
 ## Project status
 
 **Phase 1 — Foundations** ✅ complete
@@ -86,9 +109,12 @@ Primary input is **photos/scans**, so the next priority is the **AI/photo path (
 - [x] Benchmark harness — `scripts/benchmark_nuextract.py` (photo gold, micro precision)
 - [x] Fine-tune scaffolding — `build_finetune_data.py` + `finetune_nuextract.py` (QLoRA,
       fits 12 GB) + adapter eval; few-shot via `--examples`
+- [x] Native PDF extraction (Phase 3) — `ingest` text-layer detection, `extract_native`
+      (monthly + period via pdfplumber), `pipeline` dispatcher, `extract` CLI on `.pdf`,
+      synthetic gold via `synth.py` with exact render → extract round-trip tests
 - [ ] **Next:** run the LoRA fine-tune on a ≥ 16 GB GPU to fix dense-grid quantity
       alignment (zero-shot reads structure well but misaligns the monthly quantities)
-- [ ] Native PDF extraction (Phase 3, deferred)
+- [ ] Automatic native-vs-photo router (Phase 4, deferred)
 
 See [ROADMAP](docs/ROADMAP.md) for details.
 

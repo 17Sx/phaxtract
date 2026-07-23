@@ -15,5 +15,8 @@
   "pa cat.": "pa_cat",
   "pa cat net": "pa_cat_net",
   "pv ttc": "pv_ttc",
+  "date": "date",
+  "date de vente": "date",
+  "montant": "amount",
   "total": "total"
 }

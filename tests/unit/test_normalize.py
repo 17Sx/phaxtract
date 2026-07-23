@@ -30,3 +30,10 @@ def test_parse_french_decimal(raw: str, expected: float) -> None:
 
 def test_normalize_column() -> None:
     assert normalize_column("Désignation") == "designation"
+
+
+def test_normalize_column_period_headers() -> None:
+    assert normalize_column("Date") == "date"
+    assert normalize_column("Date de vente") == "date"
+    assert normalize_column("Montant") == "amount"
+    assert normalize_column("Qté") == "quantity"

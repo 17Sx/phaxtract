@@ -80,12 +80,16 @@ flowchart LR
 
 **Steps:**
 
-1. **Ingestion** — open PDF, verify text layer presence
-2. **Extraction** — read table grids/rows (pdfplumber)
+1. **Ingestion** — open PDF, verify text layer presence (`ingest.has_text_layer`)
+2. **Extraction** — read table grids/rows (pdfplumber, `extract_native`)
 3. **Deterministic layer** — see dedicated section
 
-**Constraints:** free, fast, reproducible. **Deferred** — implemented only once
-native-text PDFs are part of the input (see Path 2, the priority).
+**Status:** implemented for both **monthly** grids and **period** transaction lists.
+Free, fast, reproducible — no AI, no GPU. Synthetic gold PDFs are rendered on demand
+by `synth.py` / `scripts/generate_gold.py`, and a render → extract → compare
+round-trip keeps the fixtures cell-exact with no real data. The **automatic
+native-vs-photo router** stays deferred (Phase 4); today the CLI and
+`pipeline.extract_statement` dispatch on the file suffix.
 
 ---
 
@@ -206,8 +210,8 @@ flowchart LR
 
 **Real gold (primary):** the ~197 Google Document AI exports, converted into
 canonical `Statement` JSON, are the real-world benchmark for the photo path.  
-**Synthetic gold (secondary):** generated PDFs reproducing real layouts, with
-expected JSON — CI tests for the deferred native path.
+**Synthetic gold (secondary):** PDFs rendered on demand from the versioned expected
+JSON (`synth.py`) reproducing real layouts — CI round-trip tests for the native path.
 
 ---
 
@@ -242,12 +246,12 @@ No auth, no database, no editing in v1.
 ```mermaid
 flowchart LR
     P1["Phase 1\nFoundations"] --> P2["Phase 2\nAI path (NuExtract)"]
-    P2 --> P3["Phase 3\nPDF path (deferred)"]
+    P2 --> P3["Phase 3\nPDF path (pdfplumber)"]
     P3 --> P4["Phase 4\nQuality & UI"]
 ```
 
-> Primary input is photos, so the **AI path is the priority**; the native PDF path
-> is deferred until native-text PDFs are part of the input.
+> Primary input is photos, so the **AI path was the priority**; the native PDF path
+> (monthly + period) is now implemented, with the automatic router left to Phase 4.
 
 ### Phase 1 — Foundations ✅
 
@@ -266,14 +270,14 @@ flowchart LR
 - Benchmark NuExtract vs real gold
 - LoRA fine-tune if precision < 90%
 
-### Phase 3 — Native PDF path (deferred)
+### Phase 3 — Native PDF path ✅
 
 - Ingestion (text layer detection)
-- Table extraction (pdfplumber)
-- Pipeline: ingest → extract → assemble → JSON
-- CLI: `extract`
-- Synthetic gold PDFs (prototype on `feat/synthetic-gold-pdf`) + benchmark
-- Automatic router: native PDF vs photo
+- Table extraction (pdfplumber) — monthly grid + period transaction list
+- Pipeline: file-type dispatcher (ingest → extract → assemble → JSON)
+- CLI: `extract statement.pdf`
+- Synthetic gold PDFs (`synth.py` + `generate_gold.py`) + round-trip tests
+- Automatic router: native PDF vs photo → deferred to Phase 4
 
 ### Phase 4 — Quality & UI
 
@@ -322,7 +326,7 @@ phaxtract/
 | ----- | ------ | ------ |
 | Primary input | Photos / scans | Main real-world volume → AI path first |
 | Photo path | NuExtract 3 | Zero-shot, simple pipeline, fine-tune possible |
-| Native PDF path | pdfplumber | Free on native text — deferred until needed |
+| Native PDF path | pdfplumber | Free on native text — implemented (monthly + period) |
 | LayoutLMv3 | No | Dataset too small, complex assembler |
 | Geometric OCR | No | Insufficient precision (~5%) |
 | Google Doc AI | Gold source + reference | Convert exports into `Statement` gold; not production |

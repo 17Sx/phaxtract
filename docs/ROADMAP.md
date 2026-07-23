@@ -42,20 +42,24 @@ The monthly **quantity grid** is the hard part: zero-shot NuExtract3 gets the la
 but not the per-cell alignment on dense statements. The surest fix is the LoRA
 fine-tune on a larger GPU (scaffolding ready); few-shot is a lighter, unproven lever.
 
-## Phase 3 — Native PDF path (deferred)
+## Phase 3 — Native PDF path ✅
 
-Only relevant once native-text PDFs are part of the input. A rendering prototype
-(synthetic gold PDFs) already exists on the unmerged `feat/synthetic-gold-pdf` branch.
+Native-text PDFs, no AI and no GPU. Both statement layouts are supported, with a
+deterministic render → extract → compare round-trip so no real data is committed.
 
-- [ ] Ingestion (text-layer detection)
-- [ ] pdfplumber table extraction
-- [ ] Pipeline: ingest → extract → assemble → JSON
-- [ ] CLI `phaxtract extract statement.pdf`
-- [ ] Synthetic gold PDF fixtures (prototype on branch) + benchmark
-- [ ] Automatic router: native PDF vs photo
+- [x] Ingestion (text-layer detection) — `ingest.has_text_layer`
+- [x] pdfplumber table extraction — `extract_native.extract_statement_from_pdf`
+- [x] Assembly: monthly grid **and** period transaction list → `Statement`
+- [x] Pipeline: file-type dispatcher (`pipeline.extract_statement`)
+- [x] CLI `phaxtract extract statement.pdf`
+- [x] Synthetic gold PDFs (`synth.py` + `scripts/generate_gold.py`) + round-trip tests
+- [ ] Automatic router: native PDF vs photo (a text-less PDF falling back to the
+      photo path) — **deferred to Phase 4**; `has_text_layer` already provides the
+      discriminant
 
 ## Phase 4 — Quality & UI
 
+- [ ] Automatic router: native PDF vs photo (via `ingest.has_text_layer`)
 - [ ] Multi-page handling
 - [ ] Streamlit app (dashboard + viewer)
 - [ ] Harden reconciliation (cases without Total row)
@@ -67,7 +71,7 @@ Only relevant once native-text PDFs are part of the input. A rendering prototype
 | ----- | ------ | ------ |
 | Primary input | Photos / scans | Main real-world volume → AI path first |
 | Photo path | NuExtract 3 | Zero-shot, fine-tune possible |
-| Native PDF path | pdfplumber | Free on native text — deferred until needed |
+| Native PDF path | pdfplumber | Free on native text — implemented (monthly + period) |
 | LayoutLMv3 | No | Dataset too small |
 | Geometric OCR | No | Insufficient precision |
 | Google Doc AI | Gold source + reference | Convert its exports into `Statement` gold; not production |

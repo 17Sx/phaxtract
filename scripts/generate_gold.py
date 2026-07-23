@@ -1,14 +1,17 @@
-"""Generate synthetic gold fixtures (PDF + expected JSON).
+"""Render synthetic gold PDFs from the versioned expected JSON fixtures.
 
-Phase 1 ships expected JSON fixtures by hand. This script will render matching
-synthetic PDFs reproducing real LGO layouts so the native path (phase 2) can be
-benchmarked end-to-end without shipping sensitive real statements.
+The PDFs reproduce LGO layouts with non-sensitive data so the native path can be
+benchmarked end-to-end without shipping real statements. They are rendered on
+demand and are *not* committed to git.
 """
 
 from __future__ import annotations
 
 import argparse
+import tempfile
 from pathlib import Path
+
+from phaxtract.synth import render_expected_file
 
 GOLD_DIR = Path(__file__).resolve().parent.parent / "gold"
 
@@ -19,12 +22,9 @@ def list_expected() -> list[Path]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate synthetic gold fixtures.")
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List expected JSON fixtures currently in gold/",
-    )
+    parser = argparse.ArgumentParser(description="Generate synthetic gold PDFs.")
+    parser.add_argument("--list", action="store_true", help="List expected JSON fixtures")
+    parser.add_argument("--out", type=Path, default=None, help="Output dir (default: temp dir)")
     args = parser.parse_args()
 
     if args.list:
@@ -32,8 +32,10 @@ def main() -> None:
             print(path.name)
         return
 
-    # TODO(phase-2): render synthetic PDFs matching each *.expected.json layout.
-    print("Synthetic PDF generation lands in phase 2 (native PDF path).")
+    out_dir = args.out or Path(tempfile.mkdtemp(prefix="phaxtract-gold-"))
+    for expected in list_expected():
+        pdf = render_expected_file(expected, out_dir)
+        print(f"{expected.name} -> {pdf}")
 
 
 if __name__ == "__main__":
