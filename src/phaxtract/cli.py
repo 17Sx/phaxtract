@@ -103,6 +103,20 @@ def extract(
 
     Requires the optional AI dependencies (the "ai" extra); see the README.
     """
+    if image.suffix.lower() == ".pdf":
+        from phaxtract.extract_native import extract_statement_from_pdf
+
+        statement = extract_statement_from_pdf(image)
+        payload = statement.model_dump_json(indent=2 if pretty else None)
+        if out is not None:
+            out.write_text(payload, encoding="utf-8")
+            console.print(
+                f"[green]OK[/green] — wrote {statement.validation.row_count} line(s) to {out}"
+            )
+        else:
+            print(payload)
+        return
+
     from phaxtract.finetune_data import load_examples
 
     demos = load_examples(examples, n_examples) if examples is not None else []
