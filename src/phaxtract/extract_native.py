@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from phaxtract.fingerprint import identify_lgo
 from phaxtract.normalize import normalize_column, normalize_month, parse_french_decimal
@@ -194,3 +195,26 @@ def _parse_header_meta(text: str) -> tuple[Pharmacy, str]:
     name = body[1] if len(body) >= 2 else ""
     address = body[2] if len(body) >= 3 else ""
     return Pharmacy(name=name, address=address, id=pharmacy_id), supplier
+
+
+def extract_statement_from_pdf(
+    path: str | Path,
+    *,
+    source_file: str | None = None,
+) -> Statement:
+    """Extract a canonical Statement from a native-text PDF via pdfplumber.
+
+    Opens ``path``, collects each page's tables and text into :class:`RawPage`
+    objects, and delegates all normalization/validation to
+    :func:`native_to_statement`. pdfplumber is a core dependency, so no optional
+    guard is needed (unlike the torch-backed AI path).
+    """
+    import pdfplumber
+
+    pages: list[RawPage] = []
+    with pdfplumber.open(str(path)) as document:
+        for page in document.pages:
+            pages.append(
+                RawPage(tables=page.extract_tables() or [], text=page.extract_text() or "")
+            )
+    return native_to_statement(pages, source_file or Path(path).name)
