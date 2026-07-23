@@ -53,6 +53,28 @@ def test_native_to_statement_reconciles_monthly() -> None:
     assert stmt.validation.row_count == 2
 
 
+PERIOD_HEADER = ["Code EAN", "Désignation", "Date", "Qté", "Montant"]
+
+
+def test_detect_statement_type_period() -> None:
+    assert detect_statement_type(PERIOD_HEADER) == "period"
+
+
+def test_assemble_period_groups_transactions_by_product_and_month() -> None:
+    from phaxtract.extract_native import assemble_period
+
+    rows = [
+        ["3614810004843", "Product A", "2026-01-05", "2", "40,00"],
+        ["3614810004843", "Product A", "2026-01-20", "1", "20,00"],
+        ["3400930000000", "Product B", "2025-12-11", "3", "30,00"],
+    ]
+    lines = assemble_period(PERIOD_HEADER, rows)
+
+    assert [ln.code_produit for ln in lines] == ["3614810004843", "3400930000000"]
+    assert lines[0].quantities == {"2026-01": 3}
+    assert lines[1].quantities == {"2025-12": 3}
+
+
 def test_native_to_statement_flags_mismatched_totals() -> None:
     rows = [
         ["3614810004843", "Product A", "", "", "", "3", "3"],

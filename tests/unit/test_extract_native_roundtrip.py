@@ -27,3 +27,7 @@ def _roundtrip(name: str, tmp_path: Path) -> None:
 
 def test_monthly_roundtrip_is_exact(tmp_path: Path) -> None:
     _roundtrip("monthly_etat_des_ventes", tmp_path)
+
+
+def test_period_roundtrip_is_exact(tmp_path: Path) -> None:
+    _roundtrip("period_etat_des_ventes", tmp_path)

@@ -82,11 +82,14 @@ def _draw_document_header(page: fitz.Page, stmt: Statement) -> float:
 
 
 def render_statement_pdf(stmt: Statement, out_path: Path) -> Path:
-    """Render a synthetic gold PDF for a validated Statement (monthly layout).
+    """Render a synthetic gold PDF for a validated Statement.
 
-    Writes ``out_path`` and returns it. Performs no JSON I/O — callers pass an
-    already-validated :class:`~phaxtract.schema.Statement`.
+    Dispatches on ``document.statement_type``. Writes ``out_path`` and returns it.
+    Performs no JSON I/O — callers pass an already-validated
+    :class:`~phaxtract.schema.Statement`.
     """
+    if stmt.document.statement_type == "period":
+        return _render_period_pdf(stmt, out_path)
     return _render_monthly_pdf(stmt, out_path)
 
 
@@ -140,6 +143,56 @@ def _render_monthly_pdf(stmt: Statement, out_path: Path) -> Path:
     draw_row(total_cells, current_top)
     row_tops.append(current_top)
     current_top += _ROW_H
+    row_tops.append(current_top)
+
+    for row_top in row_tops:
+        page.draw_line((x_left, row_top), (x_right, row_top))
+    for column_x in xs:
+        page.draw_line((column_x, table_top), (column_x, current_top))
+
+    return _save(doc, out_path)
+
+
+_PERIOD_HEADERS = ["Code EAN", "Désignation", "Date", "Qté", "Montant"]
+_PERIOD_WEIGHTS = [2.0, 4.0, 1.5, 1.0, 1.5]
+
+
+def _render_period_pdf(stmt: Statement, out_path: Path) -> Path:
+    """Render a synthetic period statement: a flat transaction table.
+
+    Emits one transaction per product and month with quantity > 0, dated the first
+    of the month, so extraction re-aggregates to the same monthly quantities.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=_PAGE_W, height=_PAGE_H)
+    y = _draw_document_header(page, stmt)
+
+    x_left, x_right = _MARGIN, _PAGE_W - _MARGIN
+    span = x_right - x_left
+    total_weight = sum(_PERIOD_WEIGHTS)
+    xs = [x_left]
+    for weight in _PERIOD_WEIGHTS:
+        xs.append(xs[-1] + span * weight / total_weight)
+
+    def draw_row(cells: list[str], top: float) -> None:
+        for index, text in enumerate(cells):
+            page.insert_text((xs[index] + 2, top + 15), text, fontname=_FONT, fontsize=8)
+
+    table_top = y + 6
+    row_tops = [table_top]
+    draw_row(_PERIOD_HEADERS, table_top)
+
+    current_top = table_top + _ROW_H
+    for line in stmt.lines:
+        for month, quantity in sorted(line.quantities.items(), reverse=True):
+            if float(quantity) <= 0:
+                continue
+            draw_row(
+                [line.code_produit, line.designation, f"{month}-01", _qty(quantity), ""],
+                current_top,
+            )
+            row_tops.append(current_top)
+            current_top += _ROW_H
     row_tops.append(current_top)
 
     for row_top in row_tops:

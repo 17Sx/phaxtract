@@ -125,8 +125,40 @@ def assemble_monthly(
 
 
 def assemble_period(header: list[str], rows: list[list[str]]) -> list[Line]:
-    """Placeholder — implemented in a later task."""
-    return []
+    """Assemble a flat transaction table (code, designation, date, qty, amount).
+
+    Groups transactions by product code and buckets each transaction date into its
+    ``YYYY-MM`` month, summing quantities. Amounts are not unit prices, so
+    ``prices`` is left empty. Rows without a valid EAN-13 or month are skipped.
+    """
+    columns: dict[str, int] = {}
+    for index, cell in enumerate(header):
+        canonical = normalize_column(cell)
+        if canonical in {"code_produit", "designation", "date", "quantity", "amount"}:
+            columns[canonical] = index
+
+    grouped: dict[str, tuple[str, dict[str, int | float]]] = {}
+    order: list[str] = []
+    for row in rows:
+        code = re.sub(r"\D", "", _at(row, columns.get("code_produit")))
+        if not _EAN_RE.match(code):
+            continue
+        month = _at(row, columns.get("date"))[:7]
+        if not _MONTH_RE.match(month):
+            continue
+        quantity = _parse_int(_at(row, columns.get("quantity")))
+        if quantity is None:
+            continue
+        if code not in grouped:
+            grouped[code] = (_at(row, columns.get("designation")), {})
+            order.append(code)
+        quantities = grouped[code][1]
+        quantities[month] = quantities.get(month, 0) + quantity
+
+    return [
+        Line(code_produit=code, designation=grouped[code][0], quantities=grouped[code][1])
+        for code in order
+    ]
 
 
 def native_to_statement(pages: list[RawPage], source_file: str) -> Statement:

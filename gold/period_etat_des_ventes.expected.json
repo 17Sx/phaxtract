@@ -1,0 +1,33 @@
+{
+  "document": {
+    "source_file": "period_etat_des_ventes.pdf",
+    "lgo": "etat_des_ventes",
+    "statement_type": "period",
+    "pharmacy": {
+      "name": "Dupont Pharmacy",
+      "address": "12 Peace Street, 75001 Paris",
+      "id": "FR-75001-001"
+    },
+    "supplier": "Example Labs Inc.",
+    "months": ["2026-01", "2025-12"],
+    "generated_at": "2026-02-27",
+    "page_count": 1
+  },
+  "lines": [
+    {
+      "code_produit": "3614810004843",
+      "designation": "Product A 30 tabs",
+      "quantities": { "2026-01": 3, "2025-12": 2 }
+    },
+    {
+      "code_produit": "3400930000000",
+      "designation": "Product B 60 tabs",
+      "quantities": { "2026-01": 1 }
+    }
+  ],
+  "validation": {
+    "totals_reconciled": false,
+    "row_count": 2,
+    "flags": []
+  }
+}
